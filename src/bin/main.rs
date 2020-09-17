@@ -1,11 +1,12 @@
 extern crate clap;
 extern crate tui;
 extern crate crossterm;
+extern crate megane;
 
 use crossterm::{
-    event::{self, EnableMouseCapture, Event as CEvent, KeyCode},
+    event::{self, EnableMouseCapture, DisableMouseCapture, Event as CEvent, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
     io::{stdout, Write},
@@ -15,10 +16,15 @@ use std::{
 };
 use clap::{
     crate_authors, crate_description, crate_name, crate_version,
-    App, Arg, SubCommand,
+    App as ClapApp, Arg, SubCommand,
 };
-use tui::{backend::CrosstermBackend, Terminal};
+use tui::{
+    backend::CrosstermBackend,
+    Terminal,
+};
 use anyhow::Result;
+
+use megane::{ui, app::App};
 
 enum Event<I> {
     Input(I),
@@ -27,7 +33,7 @@ enum Event<I> {
 
 fn main() -> Result<()> {
     // setup app
-    let app = App::new(crate_name!())
+    let clap = ClapApp::new(crate_name!())
         .author(crate_authors!())
         .version(crate_version!())
         .about(crate_description!())
@@ -58,5 +64,32 @@ fn main() -> Result<()> {
             }
         }
     });
+
+    let mut app = App::new(); 
+
+    terminal.clear()?;
+
+    loop {
+        terminal.draw(|f| ui::draw(f, &mut app));
+        // event handling
+        match rx.recv()? {
+            Event::Input(event) => match event.code {
+                KeyCode::Char('q') => {
+                    disable_raw_mode()?;
+                    execute!(
+                        terminal.backend_mut(),
+                        LeaveAlternateScreen,
+                        DisableMouseCapture
+                    );
+                    terminal.show_cursor()?;
+                    break;
+                }
+                _ => {}
+            },
+            Event::Tick => {
+                println!("Tick");
+            }
+        }
+    }
     Ok(())
 }
