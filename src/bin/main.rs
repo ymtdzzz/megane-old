@@ -87,7 +87,6 @@ fn main() -> Result<()> {
                 _ => {}
             },
             Event::Tick => {
-                println!("Tick");
             }
         }
     }

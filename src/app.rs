@@ -1,4 +1,6 @@
-pub struct App {}
+pub struct App {
+
+}
 
 impl App {
     pub fn new() -> App {

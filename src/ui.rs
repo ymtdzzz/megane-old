@@ -29,6 +29,9 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .highlight_style(Style::default().fg(Color::Yellow))
         .select(0);
     f.render_widget(tabs, chunks[0]);
+
+    let logsTab = LogsTab::new();
+    logsTab.draw(f, chunks[1]);
 }
 
 // struct Tab<'a, B: Backend> {
@@ -40,7 +43,22 @@ trait Tab {
     fn draw<B: Backend>(&self, f: &mut Frame<B>, area: Rect);
 }
 
-struct LogsTab {
-    
+struct LogsTab {}
+
+impl LogsTab {
+    pub fn new() -> LogsTab {
+        LogsTab {}
+    }
 }
 
+impl Tab for LogsTab {
+    fn draw<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
+        let chunks = Layout::default()
+            .constraints([
+                Constraint::Percentage(100)
+            ].as_ref())
+            .split(area);
+        let block = Block::default().borders(Borders::ALL).title("Log Tab Area");
+        f.render_widget(block, chunks[0]);
+    }
+}
