@@ -1,6 +1,6 @@
 use super::Tab;
 use tui::{
-    backend::Backend,
+    backend::CrosstermBackend,
     widgets::{
         Block,
         Borders,
@@ -16,6 +16,7 @@ use tui::{
     style::{Style, Color},
     Frame,
 };
+use std::io::Stdout;
 
 pub struct LogsTab {}
 
@@ -26,7 +27,7 @@ impl LogsTab {
 }
 
 impl Tab for LogsTab {
-    fn draw<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
+    fn draw(&self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
             .constraints([
                 Constraint::Percentage(100)

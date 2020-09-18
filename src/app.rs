@@ -5,7 +5,7 @@ use super::components::tab::{
 
 pub struct App {
     pub currentTabIdx: usize,
-    // pub tabs: Vec<Box<Tab>>,
+    pub tabs: Vec<Box<dyn Tab>>,
 }
 
 impl App {
@@ -15,7 +15,7 @@ impl App {
         ];
         App {
             currentTabIdx: 0,
-            // tabs,
+            tabs,
         }
     }
 }

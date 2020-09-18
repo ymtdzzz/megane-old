@@ -2,7 +2,7 @@ use super::app::App;
 use super::components::tab::logstab::LogsTab;
 use super::components::tab::Tab;
 use tui::{
-    backend::Backend,
+    backend::CrosstermBackend,
     widgets::{
         Block,
         Borders,
@@ -18,8 +18,9 @@ use tui::{
     style::{Style, Color},
     Frame,
 };
+use std::io::Stdout;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     // layout
     // call current tab's draw()
     let chunks = Layout::default()
