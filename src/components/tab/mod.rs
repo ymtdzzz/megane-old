@@ -6,6 +6,7 @@ use tui::{
 use std::io::Stdout;
 
 pub mod logstab;
+pub mod metricstab;
 
 pub trait Tab {
     /// all tabs must be drawable

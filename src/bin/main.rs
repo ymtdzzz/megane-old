@@ -70,11 +70,12 @@ fn main() -> Result<()> {
     terminal.clear()?;
 
     loop {
-        terminal.draw(|f| ui::draw(f, &mut app));
+        terminal.draw(|f| ui::draw(f, &mut app))?;
         // event handling
         match rx.recv()? {
             Event::Input(event) => match event.code {
                 KeyCode::Char('q') => {
+                    // quit
                     disable_raw_mode()?;
                     execute!(
                         terminal.backend_mut(),
@@ -84,10 +85,9 @@ fn main() -> Result<()> {
                     terminal.show_cursor()?;
                     break;
                 }
-                _ => {}
+                _ => app.handle_event(event)
             },
-            Event::Tick => {
-            }
+            Event::Tick => {} // do nothing
         }
     }
     Ok(())
