@@ -4,17 +4,17 @@ use super::components::tab::{
 };
 
 pub struct App {
-    pub currentTabIdx: usize,
+    pub current_tab_idx: usize,
     pub tabs: Vec<Box<dyn Tab>>,
 }
 
 impl App {
     pub fn new() -> App {
-        let tabs = vec![
+        let tabs: Vec<Box<dyn Tab>> = vec![
             Box::new(logstab::LogsTab{}),
         ];
         App {
-            currentTabIdx: 0,
+            current_tab_idx: 0,
             tabs,
         }
     }

@@ -1,6 +1,4 @@
 use super::app::App;
-use super::components::tab::logstab::LogsTab;
-use super::components::tab::Tab;
 use tui::{
     backend::CrosstermBackend,
     widgets::{
@@ -10,9 +8,7 @@ use tui::{
     },
     layout::{
         Layout,
-        Direction,
         Constraint,
-        Rect,
     },
     text::Spans,
     style::{Style, Color},
@@ -30,10 +26,12 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     let tabs = Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL).title("aaa"))
         .highlight_style(Style::default().fg(Color::Yellow))
-        .select(0);
+        .select(app.current_tab_idx);
     f.render_widget(tabs, chunks[0]);
 
-    let logsTab = LogsTab::new();
-    logsTab.draw(f, chunks[1]);
+    // draw main area
+    if let Some(tab) = app.tabs.get(app.current_tab_idx) {
+        tab.draw(f, chunks[1]);
+    }
 }
 
