@@ -1,3 +1,4 @@
+use crate::utils::StatefulList;
 use super::components::tab::{
     Tab,
     logstab,
@@ -12,8 +13,15 @@ pub struct App {
 
 impl App {
     pub fn new() -> App {
+        // TODO: need to fetch log groups
+        let log_groups = StatefulList::new(vec![
+            String::from("Log Group 1"),
+            String::from("Log Group 2"),
+            String::from("Log Group 3"),
+        ]);
+
         let tabs: Vec<Box<dyn Tab>> = vec![
-            Box::new(logstab::LogsTab::new()),
+            Box::new(logstab::LogsTab::new(log_groups)),
             Box::new(metricstab::MetricsTab::new()),
         ];
         App {
@@ -27,7 +35,11 @@ impl App {
             KeyCode::Tab => {
                 self.current_tab_idx = self.get_next_tab_idx();
             },
-            _ => {}
+            _ => {
+                if let Some(tab) = self.tabs.get_mut(self.current_tab_idx) {
+                    tab.handle_event(event);
+                }
+            }
         }
     }
 
