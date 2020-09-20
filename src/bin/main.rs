@@ -2,6 +2,8 @@ extern crate clap;
 extern crate tui;
 extern crate crossterm;
 extern crate megane;
+extern crate rusoto_core;
+extern crate rusoto_logs;
 
 use crossterm::{
     event::{self, EnableMouseCapture, DisableMouseCapture, Event as CEvent, KeyCode},
@@ -23,6 +25,10 @@ use tui::{
     Terminal,
 };
 use anyhow::Result;
+use rusoto_core::Region;
+use rusoto_logs::{
+    CloudWatchLogs, CloudWatchLogsClient, DescribeLogGroupsRequest
+};
 
 use megane::{ui, app::App};
 
@@ -31,7 +37,8 @@ enum Event<I> {
     Tick,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     // setup app
     let clap = ClapApp::new(crate_name!())
         .author(crate_authors!())

@@ -669,6 +669,8 @@ dependencies = [
  "crossterm",
  "rusoto_cloudwatch",
  "rusoto_core",
+ "rusoto_logs",
+ "tokio",
  "tui",
 ]
 
@@ -1107,6 +1109,20 @@ dependencies = [
  "shlex",
  "tokio",
  "zeroize",
+]
+
+[[package]]
+name = "rusoto_logs"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47079cf81cf7301d96195e495f2649cd731bedfe592925741997eb5a02d253e6"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "futures",
+ "rusoto_core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

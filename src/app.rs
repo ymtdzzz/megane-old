@@ -5,6 +5,7 @@ use super::components::tab::{
     metricstab,
 };
 use crossterm::event::{KeyEvent, KeyCode};
+use rusoto_core::Region;
 
 pub struct App {
     pub current_tab_idx: usize,
@@ -21,7 +22,7 @@ impl App {
         ]);
 
         let tabs: Vec<Box<dyn Tab>> = vec![
-            Box::new(logstab::LogsTab::new(log_groups)),
+            Box::new(logstab::LogsTab::new(log_groups, Region::ApNortheast1)),
             Box::new(metricstab::MetricsTab::new()),
         ];
         App {
