@@ -29,7 +29,7 @@ pub fn draw(f: &mut Frame<CrosstermBackend<Stdout>>, app: &mut App) {
     f.render_widget(tabs, chunks[0]);
 
     // draw main area
-    if let Some(tab) = app.tabs.get(app.current_tab_idx) {
+    if let Some(tab) = app.tabs.get_mut(app.current_tab_idx) {
         tab.draw(f, chunks[1]);
     }
 }

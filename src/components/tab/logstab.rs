@@ -1,14 +1,12 @@
 use super::Tab;
-use crate::utils::StatefulList;
+use crate::utils::{MenuList, loggroup_menulist::LogGroupMenuList};
 use tui::{
     backend::CrosstermBackend,
     widgets::{
         Block,
         Borders,
-        Tabs,
         List,
         ListItem,
-        ListState,
     },
     layout::{
         Layout,
@@ -16,8 +14,7 @@ use tui::{
         Constraint,
         Rect,
     },
-    text::Spans,
-    style::{Style, Color, Modifier},
+    style::{Style, Modifier},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode};
@@ -28,38 +25,43 @@ use rusoto_logs::{
 };
 use anyhow::Result;
 
-pub struct LogsTab {
-    log_groups: StatefulList,
+pub struct LogsTab
+{
+    log_groups: LogGroupMenuList,
     client: CloudWatchLogsClient,
     next_token: Option<String>,
 }
 
 impl LogsTab {
-    pub fn new(log_groups: StatefulList, region: Region) -> LogsTab {
+    pub async fn new(log_groups: LogGroupMenuList, region: Region) -> Result<LogsTab> {
         let mut tab = LogsTab {
             log_groups,
             client: CloudWatchLogsClient::new(region),
             next_token: None,
         };
-        tab.fetch_log_groups();
-        tab
+        tab.fetch_log_groups().await?;
+        Ok(tab)
     }
 
-    async fn fetch_log_groups(&mut self) -> Result<Option<Vec<LogGroup>>> {
+    async fn fetch_log_groups(&mut self) -> Result<()> {
         let request = DescribeLogGroupsRequest {
-            limit: Some(10),
+            limit: Some(3),
             log_group_name_prefix: None,
             next_token: None,
         };
         let response = self.client.describe_log_groups(request).await?;
         self.next_token = response.next_token;
-        println!("{:?}", response.log_groups);
-        Ok(response.log_groups)
+        let log_groups = match response.log_groups {
+            Some(log_groups) => log_groups,
+            None => vec![],
+        };
+        self.log_groups = LogGroupMenuList::new(log_groups);
+        Ok(())
     }
 }
 
 impl Tab for LogsTab {
-    fn draw(&self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+    fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -67,7 +69,8 @@ impl Tab for LogsTab {
                 Constraint::Percentage(70),
             ].as_ref())
             .split(area);
-        let log_group_items: Vec<ListItem> = self.log_groups.items.iter()
+        let labels = self.log_groups.get_labels();
+        let log_group_items: Vec<ListItem> = labels.iter()
             .map(|i| ListItem::new(i.as_ref())).collect();
         let log_list_block = List::new(log_group_items)
             .block(Block::default().borders(Borders::ALL).title("Log Groups"))
@@ -76,7 +79,13 @@ impl Tab for LogsTab {
                     .add_modifier(Modifier::BOLD),
             )
             .highlight_symbol(">> ");
-        f.render_stateful_widget(log_list_block, chunks[0], &mut self.log_groups.state.clone());
+        println!("{:?}", LogGroup::default());
+        if let Some(ref mut state) = self.log_groups.get_state() {
+            f.render_stateful_widget(log_list_block, chunks[0], state);
+        } else {
+            // TODO: raise error??
+            panic!("state NONE");
+        }
     }
 
     fn handle_event(&mut self, event: KeyEvent) {

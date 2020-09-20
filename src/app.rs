@@ -1,4 +1,3 @@
-use crate::utils::StatefulList;
 use super::components::tab::{
     Tab,
     logstab,
@@ -6,6 +5,9 @@ use super::components::tab::{
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use rusoto_core::Region;
+use rusoto_logs::LogGroup;
+use anyhow::Result;
+use crate::utils::loggroup_menulist::LogGroupMenuList;
 
 pub struct App {
     pub current_tab_idx: usize,
@@ -13,22 +15,18 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> App {
+    pub async fn new() -> Result<App> {
         // TODO: need to fetch log groups
-        let log_groups = StatefulList::new(vec![
-            String::from("Log Group 1"),
-            String::from("Log Group 2"),
-            String::from("Log Group 3"),
-        ]);
+        let log_groups = LogGroupMenuList::new(vec![LogGroup::default()]);
 
         let tabs: Vec<Box<dyn Tab>> = vec![
-            Box::new(logstab::LogsTab::new(log_groups, Region::ApNortheast1)),
+            Box::new(logstab::LogsTab::new(log_groups, Region::ApNortheast1).await?),
             Box::new(metricstab::MetricsTab::new()),
         ];
-        App {
+        Ok(App {
             current_tab_idx: 0,
             tabs,
-        }
+        })
     }
 
     pub fn handle_event(&mut self, event: KeyEvent) {

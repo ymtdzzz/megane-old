@@ -4,16 +4,12 @@ use tui::{
     widgets::{
         Block,
         Borders,
-        Tabs,
     },
     layout::{
         Layout,
-        Direction,
         Constraint,
         Rect,
     },
-    text::Spans,
-    style::{Style, Color},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode};
@@ -28,7 +24,7 @@ impl MetricsTab {
 }
 
 impl Tab for MetricsTab {
-    fn draw(&self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+    fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
             .constraints([
                 Constraint::Percentage(100)

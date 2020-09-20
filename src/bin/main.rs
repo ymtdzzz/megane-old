@@ -25,10 +25,6 @@ use tui::{
     Terminal,
 };
 use anyhow::Result;
-use rusoto_core::Region;
-use rusoto_logs::{
-    CloudWatchLogs, CloudWatchLogsClient, DescribeLogGroupsRequest
-};
 
 use megane::{ui, app::App};
 
@@ -40,7 +36,7 @@ enum Event<I> {
 #[tokio::main]
 async fn main() -> Result<()> {
     // setup app
-    let clap = ClapApp::new(crate_name!())
+    let _clap = ClapApp::new(crate_name!())
         .author(crate_authors!())
         .version(crate_version!())
         .about(crate_description!())
@@ -72,7 +68,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let mut app = App::new(); 
+    let mut app = App::new().await?; 
 
     terminal.clear()?;
 
@@ -88,7 +84,7 @@ async fn main() -> Result<()> {
                         terminal.backend_mut(),
                         LeaveAlternateScreen,
                         DisableMouseCapture
-                    );
+                    )?;
                     terminal.show_cursor()?;
                     break;
                 }

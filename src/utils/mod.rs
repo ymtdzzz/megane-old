@@ -1,55 +1,41 @@
-use tui::{
-    widgets::{
-        ListItem,
-        ListState,
-    },
-};
+use tui::widgets::ListState;
 
-pub struct StatefulList {
-    pub items: Vec<String>,
-    pub state: ListState,
-}
+pub mod loggroup_menulist;
 
-impl StatefulList {
-    pub fn new(items: Vec<String>) -> StatefulList {
-        let mut list = StatefulList {
-            items,
-            state: ListState::default(),
-        };
-        list.next();
-        list
+pub trait MenuList {
+    fn get_labels(&self) -> Vec<String>;
+    fn get_state(&mut self) -> Option<ListState>;
+    fn set_state(&mut self, new_state: ListState);
+    fn next(&mut self) {
+        if let Some(mut state) = self.get_state() {
+            let i = match state.selected() {
+                Some(i) => {
+                    if i >= self.get_labels().len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
     }
-
-    pub fn set_items(&mut self, items: Vec<String>) {
-        self.items = items;
-        self.state = ListState::default();
-    }
-
-    pub fn next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            },
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    pub fn previous(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
+    fn previous(&mut self) {
+        if let Some(mut state) = self.get_state() {
+            let i = match state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        self.get_labels().len() - 1
+                    } else {
+                        i - 1
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
     }
 }
