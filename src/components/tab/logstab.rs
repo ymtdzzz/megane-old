@@ -14,7 +14,7 @@ use tui::{
         Constraint,
         Rect,
     },
-    style::{Style, Modifier},
+    style::{Style, Modifier, Color},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode};
@@ -26,19 +26,25 @@ use rusoto_logs::{
 use anyhow::Result;
 use async_trait::async_trait;
 
+use crate::components::textinput::TextInputComponent;
+
 pub struct LogsTab
 {
     log_groups: LogGroupMenuList,
+    is_menu_active: bool,
     client: CloudWatchLogsClient,
     next_token: Option<String>,
+    text_input: TextInputComponent,
 }
 
 impl LogsTab {
     pub async fn new(log_groups: LogGroupMenuList, region: Region) -> Result<LogsTab> {
         let mut tab = LogsTab {
             log_groups,
+            is_menu_active: true,
             client: CloudWatchLogsClient::new(region),
             next_token: None,
+            text_input: TextInputComponent::new("Search", ""),
         };
         tab.fetch_log_groups().await?;
         Ok(tab)
@@ -59,6 +65,11 @@ impl LogsTab {
         self.log_groups.push_items(&mut log_groups, self.next_token.as_ref());
         Ok(())
     }
+
+    fn toggle_active(&mut self) {
+        self.is_menu_active = !self.is_menu_active;
+        self.text_input.toggle_active();
+    }
 }
 
 #[async_trait]
@@ -75,7 +86,18 @@ impl Tab for LogsTab {
         let log_group_items: Vec<ListItem> = labels.iter()
             .map(|i| ListItem::new(i.as_ref())).collect();
         let log_list_block = List::new(log_group_items)
-            .block(Block::default().borders(Borders::ALL).title("Log Groups"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(
+                        if self.is_menu_active {
+                            Style::default().fg(Color::Yellow)
+                        } else {
+                            Style::default().fg(Color::White)
+                        }
+                    )
+                    .title("Log Groups")
+            )
             .highlight_style(
                 Style::default()
                     .add_modifier(Modifier::BOLD),
@@ -87,22 +109,37 @@ impl Tab for LogsTab {
             // TODO: raise error??
             panic!("state NONE");
         }
+        self.text_input.draw(f, chunks[1]);
     }
 
     async fn handle_event(&mut self, event: KeyEvent) {
-        match event.code {
-            KeyCode::Down => self.log_groups.next(),
-            KeyCode::Up => self.log_groups.previous(),
-            KeyCode::Enter => {
-                if let Some(state) = self.log_groups.get_state() {
-                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-                        if let Some(_) = self.next_token {
-                            self.fetch_log_groups().await;
+        if self.text_input.is_normal_mode() {
+            match event.code {
+                KeyCode::Right => self.toggle_active(),
+                KeyCode::Left => self.toggle_active(),
+                _ => {
+                    if self.is_menu_active {
+                        match event.code {
+                            KeyCode::Down => self.log_groups.next(),
+                            KeyCode::Up => self.log_groups.previous(),
+                            KeyCode::Enter => {
+                                if let Some(state) = self.log_groups.get_state() {
+                                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
+                                        if let Some(_) = self.next_token {
+                                            self.fetch_log_groups().await;
+                                        }
+                                    };
+                                }
+                            },
+                            _ => {}
                         }
-                    };
+                    } else {
+                        self.text_input.handle_event(event);
+                    }
                 }
-            },
-            _ => {}
+            }
+        } else {
+            self.text_input.handle_event(event);
         }
     }
 }
