@@ -17,7 +17,7 @@ pub struct App {
 impl App {
     pub async fn new() -> Result<App> {
         // TODO: need to fetch log groups
-        let log_groups = LogGroupMenuList::new(vec![LogGroup::default()]);
+        let log_groups = LogGroupMenuList::new(vec![]);
 
         let tabs: Vec<Box<dyn Tab>> = vec![
             Box::new(logstab::LogsTab::new(log_groups, Region::ApNortheast1).await?),
@@ -29,14 +29,14 @@ impl App {
         })
     }
 
-    pub fn handle_event(&mut self, event: KeyEvent) {
+    pub async fn handle_event(&mut self, event: KeyEvent) {
         match event.code {
             KeyCode::Tab => {
                 self.current_tab_idx = self.get_next_tab_idx();
             },
             _ => {
                 if let Some(tab) = self.tabs.get_mut(self.current_tab_idx) {
-                    tab.handle_event(event);
+                    tab.handle_event(event).await;
                 }
             }
         }

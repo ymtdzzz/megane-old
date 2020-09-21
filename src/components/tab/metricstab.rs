@@ -14,6 +14,7 @@ use tui::{
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use std::io::Stdout;
+use async_trait::async_trait;
 
 pub struct MetricsTab {}
 
@@ -23,6 +24,7 @@ impl MetricsTab {
     }
 }
 
+#[async_trait]
 impl Tab for MetricsTab {
     fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
@@ -34,7 +36,7 @@ impl Tab for MetricsTab {
         f.render_widget(block, chunks[0]);
     }
 
-    fn handle_event(&mut self, event: KeyEvent) {
+    async fn handle_event(&mut self, event: KeyEvent) {
         match event.code {
             _ => {}
         }

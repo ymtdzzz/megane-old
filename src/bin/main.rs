@@ -88,9 +88,11 @@ async fn main() -> Result<()> {
                     terminal.show_cursor()?;
                     break;
                 }
-                _ => app.handle_event(event)
+                _ => app.handle_event(event).await
             },
-            Event::Tick => {} // do nothing
+            Event::Tick => {
+                // TODO: fetch logs and metrics
+            }
         }
     }
     Ok(())

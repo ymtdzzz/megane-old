@@ -24,6 +24,7 @@ use rusoto_logs::{
     CloudWatchLogs, CloudWatchLogsClient, DescribeLogGroupsRequest, LogGroup,
 };
 use anyhow::Result;
+use async_trait::async_trait;
 
 pub struct LogsTab
 {
@@ -45,21 +46,22 @@ impl LogsTab {
 
     async fn fetch_log_groups(&mut self) -> Result<()> {
         let request = DescribeLogGroupsRequest {
-            limit: Some(3),
+            limit: Some(50),
             log_group_name_prefix: None,
-            next_token: None,
+            next_token: self.next_token.clone(),
         };
         let response = self.client.describe_log_groups(request).await?;
         self.next_token = response.next_token;
-        let log_groups = match response.log_groups {
+        let mut log_groups = match response.log_groups {
             Some(log_groups) => log_groups,
             None => vec![],
         };
-        self.log_groups = LogGroupMenuList::new(log_groups);
+        self.log_groups.push_items(&mut log_groups, self.next_token.as_ref());
         Ok(())
     }
 }
 
+#[async_trait]
 impl Tab for LogsTab {
     fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
@@ -79,7 +81,6 @@ impl Tab for LogsTab {
                     .add_modifier(Modifier::BOLD),
             )
             .highlight_symbol(">> ");
-        println!("{:?}", LogGroup::default());
         if let Some(ref mut state) = self.log_groups.get_state() {
             f.render_stateful_widget(log_list_block, chunks[0], state);
         } else {
@@ -88,10 +89,19 @@ impl Tab for LogsTab {
         }
     }
 
-    fn handle_event(&mut self, event: KeyEvent) {
+    async fn handle_event(&mut self, event: KeyEvent) {
         match event.code {
             KeyCode::Down => self.log_groups.next(),
             KeyCode::Up => self.log_groups.previous(),
+            KeyCode::Enter => {
+                if let Some(state) = self.log_groups.get_state() {
+                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
+                        if let Some(_) = self.next_token {
+                            self.fetch_log_groups().await;
+                        }
+                    };
+                }
+            },
             _ => {}
         }
     }
