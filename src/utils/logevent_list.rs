@@ -21,6 +21,11 @@ impl LogEventList {
         self.items = items;
     }
 
+    pub fn clear_items(&mut self) {
+        self.items = vec![];
+        self.state = Some(TableState::default());
+    }
+
     pub fn push_items(&mut self, mut items: &mut Vec<FilteredLogEvent>, next_token: Option<&String>) {
         if self.items.len() > 0 {
             self.items.remove(self.items.len() - 1);

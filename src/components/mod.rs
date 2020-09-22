@@ -19,7 +19,7 @@ pub trait Drawable {
 
     /// handle event
     /// return data means whether parent component should handle event or not
-    async fn handle_event(&mut self, event: KeyEvent);
+    async fn handle_event(&mut self, event: KeyEvent) -> bool;
 }
 
 

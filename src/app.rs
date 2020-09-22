@@ -31,14 +31,17 @@ impl App {
     }
 
     pub async fn handle_event(&mut self, event: KeyEvent) {
-        match event.code {
-            KeyCode::Tab => {
-                self.current_tab_idx = self.get_next_tab_idx();
-            },
-            _ => {
-                if let Some(tab) = self.tabs.get_mut(self.current_tab_idx) {
-                    tab.handle_event(event).await;
-                }
+        let mut solved = if let Some(tab) = self.tabs.get_mut(self.current_tab_idx) {
+            tab.handle_event(event).await
+        } else {
+            false
+        };
+        if !solved {
+            match event.code {
+                KeyCode::Tab => {
+                    self.current_tab_idx = self.get_next_tab_idx();
+                },
+                _ => {}
             }
         }
     }

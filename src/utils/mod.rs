@@ -77,4 +77,36 @@ pub trait StatefulTable {
             self.set_state(state);
         }
     }
+    fn next_by(&mut self, size: usize) {
+        if let Some(mut state) = self.get_state() {
+            let i = match state.selected() {
+                Some(i) => {
+                    if i >= self.get_labels().len() - size {
+                        0
+                    } else {
+                        i + size
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
+    }
+    fn previous_by(&mut self, size: usize) {
+        if let Some(mut state) = self.get_state() {
+            let i = match state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        self.get_labels().len() - size
+                    } else {
+                        i - size
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
+    }
 }

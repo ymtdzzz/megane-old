@@ -49,8 +49,12 @@ impl TextInputComponent {
         self.is_active = !self.is_active;
     }
 
-    pub fn set_active(&mut self, is_active: bool) {
-        self.is_active = is_active;
+    pub fn select(&mut self) {
+        self.is_active = true;
+    }
+
+    pub fn deselect(&mut self) {
+        self.is_active = false;
     }
 
     pub fn set_input_mode(&mut self, mode: InputMode) {
@@ -132,11 +136,12 @@ impl Drawable for TextInputComponent {
         f.render_widget(paragraph, area);
     }
 
-    async fn handle_event(&mut self, event: KeyEvent) {
+    async fn handle_event(&mut self, event: KeyEvent) -> bool {
+        let mut solved = true;
         if self.is_normal_mode() {
             match event.code {
                 KeyCode::Enter => self.set_input_mode(EditMode),
-                _ => {}
+                _ => solved = false
             }
         } else {
             match event.code {
@@ -148,8 +153,9 @@ impl Drawable for TextInputComponent {
                 KeyCode::Right => self.next_cursor(),
                 KeyCode::Left => self.prev_cursor(),
                 KeyCode::Esc => self.set_input_mode(NormalMode),
-                _ => {}
+                _ => solved = false
             }
         }
+        solved
     }
 }

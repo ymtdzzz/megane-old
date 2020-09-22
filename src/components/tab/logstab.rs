@@ -71,9 +71,14 @@ impl LogsTab {
         Ok(())
     }
 
-    fn toggle_active(&mut self) {
-        self.is_menu_active = !self.is_menu_active;
-        self.log_area.toggle_active();
+    fn activate_menu_area(&mut self) {
+        self.is_menu_active = true;
+        self.log_area.deselect();
+    }
+
+    fn activate_log_area(&mut self) {
+        self.is_menu_active = false;
+        self.log_area.select();
     }
 }
 
@@ -117,52 +122,36 @@ impl Drawable for LogsTab {
         self.log_area.draw(f, chunks[1]);
     }
 
-    async fn handle_event(&mut self, event: KeyEvent) {
-        // if self.log_area.is_active() {
-        //     self.log_area.handle_event(event);
-        // } else {
-        //     match event.code {
-        //         KeyCode::Right => self.toggle_active(),
-        //         KeyCode::Left => self.toggle_active(),
-        //         _ => {
-        //             if self.is_menu_active {
-        //                 match event.code {
-        //                     KeyCode::Down => self.log_groups.next(),
-        //                     KeyCode::Up => self.log_groups.previous(),
-        //                     KeyCode::Enter => {
-        //                         if let Some(state) = self.log_groups.get_state() {
-        //                             if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-        //                                 if let Some(_) = self.next_token {
-        //                                     self.fetch_log_groups().await;
-        //                                 }
-        //                             };
-        //                         }
-        //                     },
-        //                     _ => {}
-        //                 }
-        //             } else {
-        //                 self.log_area.handle_event(event);
-        //             }
-        //         }
-        //     }
-        // }
-        match event.code {
-            KeyCode::Down => self.log_groups.next(),
-            KeyCode::Up => self.log_groups.previous(),
-            KeyCode::Enter => {
-                if let Some(state) = self.log_groups.get_state() {
-                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-                        if let Some(_) = self.next_token {
-                            self.fetch_log_groups().await;
-                        }
-                    } else {
-                        if let Some(idx) = state.selected() {
-                            self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
-                        }
-                    };
+    async fn handle_event(&mut self, event: KeyEvent) -> bool {
+        let mut solved = true;
+        if self.is_menu_active {
+            match event.code {
+                KeyCode::Down => self.log_groups.next(),
+                KeyCode::Up => self.log_groups.previous(),
+                KeyCode::Enter => {
+                    if let Some(state) = self.log_groups.get_state() {
+                        if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
+                            if let Some(_) = self.next_token {
+                                self.fetch_log_groups().await;
+                            }
+                        } else {
+                            if let Some(idx) = state.selected() {
+                                self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
+                                self.activate_log_area();
+                            }
+                        };
+                    }
+                },
+                _ => solved = false
+            }
+        } else {
+            if !self.log_area.handle_event(event).await {
+                match event.code {
+                    KeyCode::Esc => self.activate_menu_area(),
+                    _ => solved = false
                 }
-            },
-            _ => self.log_area.handle_event(event).await
+            }
         }
+        solved
     }
 }

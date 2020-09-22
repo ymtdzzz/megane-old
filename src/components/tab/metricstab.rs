@@ -36,9 +36,11 @@ impl Drawable for MetricsTab {
         f.render_widget(block, chunks[0]);
     }
 
-    async fn handle_event(&mut self, event: KeyEvent) {
+    async fn handle_event(&mut self, event: KeyEvent) -> bool {
+        let mut solved = true;
         match event.code {
-            _ => {}
+            _ => solved = false
         }
+        solved
     }
 }
