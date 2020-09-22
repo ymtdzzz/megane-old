@@ -47,7 +47,7 @@ impl StatefulTable for LogEventList {
             .map(|i| {
                 let mut vec = Vec::with_capacity(2);
                 if let Some(timestamp) = &i.timestamp {
-                    let dt = Utc.timestamp(*timestamp, 0);
+                    let dt = Utc.timestamp(*timestamp / 1000, 0);
                     vec.push(dt.format("%Y-%m-%d %H:%M:%S %Z").to_string());
                 } else {
                     vec.push(String::from(""));

@@ -126,7 +126,9 @@ impl Drawable for LogsTab {
         let mut solved = true;
         if self.is_menu_active {
             match event.code {
-                KeyCode::Down => self.log_groups.next(),
+                KeyCode::Down => {
+                    self.log_groups.next();
+                },
                 KeyCode::Up => self.log_groups.previous(),
                 KeyCode::Enter => {
                     if let Some(state) = self.log_groups.get_state() {

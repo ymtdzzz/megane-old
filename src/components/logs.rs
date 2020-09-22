@@ -34,6 +34,7 @@ use async_trait::async_trait;
 use core::slice::Iter;
 use std::iter::Map;
 use core::fmt::Display;
+use tokio::task;
 
 pub struct Logs {
     search_area: TextInputComponent,
@@ -44,7 +45,6 @@ pub struct Logs {
     is_active: bool,
     is_search_active: bool,
     log_group_name: Option<String>,
-    // cached_rows: Iterator<Item = Row<Iterator<Item = String>>>,
 }
 
 impl Logs {
@@ -60,7 +60,6 @@ impl Logs {
             is_active: false,
             is_search_active: false,
             log_group_name: None,
-            // cached_rows: rows,
         }
     }
 
@@ -93,8 +92,10 @@ impl Logs {
         self.log_group_name = log_group_name;
     }
 
-    async fn fetch_log_events(&mut self, filter_pattern: Option<String>, log_group_name: String) -> Result<()> {
+    pub async fn fetch_log_events(&mut self) -> Result<()> {
         let mut request = FilterLogEventsRequest::default();
+        let filter_pattern = Some(self.search_area.get_text().clone());
+        let log_group_name = self.log_group_name.clone().unwrap_or(String::from(""));
         request.filter_pattern = filter_pattern;
         request.log_group_name = log_group_name;
         request.limit = Some(100);
@@ -144,7 +145,7 @@ impl Drawable for Logs {
                     .bg(Color::DarkGray)
             )
             .widths(&[
-                Constraint::Percentage(10),
+                Constraint::Percentage(15),
                 Constraint::Percentage(100),
             ]);
         self.search_area.draw(f, chunks[0]);
@@ -163,9 +164,7 @@ impl Drawable for Logs {
                 match event.code {
                     KeyCode::Enter => {
                         self.event_list.clear_items();
-                        let filter_pattern = Some(self.search_area.get_text().clone());
-                        let log_group_name = self.log_group_name.clone().unwrap_or(String::from(""));
-                        self.fetch_log_events(filter_pattern, log_group_name).await;
+                        self.fetch_log_events().await;
                         self.activate_logs_area();
                     },
                     _ => solved = false
