@@ -1,5 +1,8 @@
-use super::Tab;
-use crate::utils::{MenuList, loggroup_menulist::LogGroupMenuList};
+use crate::components::{
+    Drawable,
+    logs::Logs,
+};
+use crate::utils::{StatefulList, loggroup_menulist::LogGroupMenuList};
 use tui::{
     backend::CrosstermBackend,
     widgets::{
@@ -34,17 +37,19 @@ pub struct LogsTab
     is_menu_active: bool,
     client: CloudWatchLogsClient,
     next_token: Option<String>,
-    text_input: TextInputComponent,
+    log_area: Logs,
 }
 
 impl LogsTab {
     pub async fn new(log_groups: LogGroupMenuList, region: Region) -> Result<LogsTab> {
+        // TODO: remove this expression by sharing region
+        let region_c = region.clone();
         let mut tab = LogsTab {
             log_groups,
             is_menu_active: true,
             client: CloudWatchLogsClient::new(region),
             next_token: None,
-            text_input: TextInputComponent::new("Search", ""),
+            log_area: Logs::new("aaaaa", CloudWatchLogsClient::new(region_c)),
         };
         tab.fetch_log_groups().await?;
         Ok(tab)
@@ -68,12 +73,12 @@ impl LogsTab {
 
     fn toggle_active(&mut self) {
         self.is_menu_active = !self.is_menu_active;
-        self.text_input.toggle_active();
+        self.log_area.toggle_active();
     }
 }
 
 #[async_trait]
-impl Tab for LogsTab {
+impl Drawable for LogsTab {
     fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -109,37 +114,55 @@ impl Tab for LogsTab {
             // TODO: raise error??
             panic!("state NONE");
         }
-        self.text_input.draw(f, chunks[1]);
+        self.log_area.draw(f, chunks[1]);
     }
 
     async fn handle_event(&mut self, event: KeyEvent) {
-        if self.text_input.is_normal_mode() {
-            match event.code {
-                KeyCode::Right => self.toggle_active(),
-                KeyCode::Left => self.toggle_active(),
-                _ => {
-                    if self.is_menu_active {
-                        match event.code {
-                            KeyCode::Down => self.log_groups.next(),
-                            KeyCode::Up => self.log_groups.previous(),
-                            KeyCode::Enter => {
-                                if let Some(state) = self.log_groups.get_state() {
-                                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-                                        if let Some(_) = self.next_token {
-                                            self.fetch_log_groups().await;
-                                        }
-                                    };
-                                }
-                            },
-                            _ => {}
+        // if self.log_area.is_active() {
+        //     self.log_area.handle_event(event);
+        // } else {
+        //     match event.code {
+        //         KeyCode::Right => self.toggle_active(),
+        //         KeyCode::Left => self.toggle_active(),
+        //         _ => {
+        //             if self.is_menu_active {
+        //                 match event.code {
+        //                     KeyCode::Down => self.log_groups.next(),
+        //                     KeyCode::Up => self.log_groups.previous(),
+        //                     KeyCode::Enter => {
+        //                         if let Some(state) = self.log_groups.get_state() {
+        //                             if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
+        //                                 if let Some(_) = self.next_token {
+        //                                     self.fetch_log_groups().await;
+        //                                 }
+        //                             };
+        //                         }
+        //                     },
+        //                     _ => {}
+        //                 }
+        //             } else {
+        //                 self.log_area.handle_event(event);
+        //             }
+        //         }
+        //     }
+        // }
+        match event.code {
+            KeyCode::Down => self.log_groups.next(),
+            KeyCode::Up => self.log_groups.previous(),
+            KeyCode::Enter => {
+                if let Some(state) = self.log_groups.get_state() {
+                    if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
+                        if let Some(_) = self.next_token {
+                            self.fetch_log_groups().await;
                         }
                     } else {
-                        self.text_input.handle_event(event);
-                    }
+                        if let Some(idx) = state.selected() {
+                            self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
+                        }
+                    };
                 }
-            }
-        } else {
-            self.text_input.handle_event(event);
+            },
+            _ => self.log_area.handle_event(event).await
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::Tab;
+use crate::components::Drawable;
 use tui::{
     backend::CrosstermBackend,
     widgets::{
@@ -25,7 +25,7 @@ impl MetricsTab {
 }
 
 #[async_trait]
-impl Tab for MetricsTab {
+impl Drawable for MetricsTab {
     fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let chunks = Layout::default()
             .constraints([

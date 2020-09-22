@@ -1,14 +1,15 @@
+use crate::components::Drawable;
 use tui::{
-    backend::Backend,
+    backend::CrosstermBackend,
     layout::Rect,
-    style::Modifier,
-    text::Text,
     Frame,
     widgets::{Paragraph, Block, Borders},
     style::{Style, Color},
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use anyhow::Result;
+use std::io::Stdout;
+use async_trait::async_trait;
 
 pub enum InputMode {
     NormalMode,
@@ -46,6 +47,10 @@ impl TextInputComponent {
 
     pub fn toggle_active(&mut self) {
         self.is_active = !self.is_active;
+    }
+
+    pub fn set_active(&mut self, is_active: bool) {
+        self.is_active = is_active;
     }
 
     pub fn set_input_mode(&mut self, mode: InputMode) {
@@ -97,9 +102,11 @@ impl TextInputComponent {
         let (first, last) = msg.split_at(at);
         [first, ch, last].concat()
     }
+}
 
-    // TODO: export these functions to trait 'Component'? ------------
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>, area: Rect) -> Result<()> {
+#[async_trait]
+impl Drawable for TextInputComponent {
+    fn draw(&mut self, f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         let mut msg = if self.msg.is_empty() {
             self.default_msg.as_ref()
         } else {
@@ -123,10 +130,9 @@ impl TextInputComponent {
                     .title(self.title.as_str())
             );
         f.render_widget(paragraph, area);
-        Ok(())
     }
 
-    pub fn handle_event(&mut self, event: KeyEvent) {
+    async fn handle_event(&mut self, event: KeyEvent) {
         if self.is_normal_mode() {
             match event.code {
                 KeyCode::Enter => self.set_input_mode(EditMode),

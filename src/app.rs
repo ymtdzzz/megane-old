@@ -1,17 +1,18 @@
-use super::components::tab::{
-    Tab,
-    logstab,
-    metricstab,
+use super::components::{
+    tab::{
+        logstab,
+        metricstab,
+    },
+    Drawable,
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use rusoto_core::Region;
-use rusoto_logs::LogGroup;
 use anyhow::Result;
 use crate::utils::loggroup_menulist::LogGroupMenuList;
 
 pub struct App {
     pub current_tab_idx: usize,
-    pub tabs: Vec<Box<dyn Tab>>,
+    pub tabs: Vec<Box<dyn Drawable>>,
 }
 
 impl App {
@@ -19,7 +20,7 @@ impl App {
         // TODO: need to fetch log groups
         let log_groups = LogGroupMenuList::new(vec![]);
 
-        let tabs: Vec<Box<dyn Tab>> = vec![
+        let tabs: Vec<Box<dyn Drawable>> = vec![
             Box::new(logstab::LogsTab::new(log_groups, Region::ApNortheast1).await?),
             Box::new(metricstab::MetricsTab::new()),
         ];

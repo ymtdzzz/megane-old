@@ -1,4 +1,4 @@
-use super::MenuList;
+use super::StatefulList;
 use tui::widgets::ListState;
 use rusoto_logs::LogGroup;
 
@@ -20,6 +20,10 @@ impl LogGroupMenuList {
         self.items = items;
     }
 
+    pub fn get_log_group_name(&self, idx: usize) -> Option<String> {
+        self.items[idx].log_group_name.clone()
+    }
+
     pub fn push_items(&mut self, mut items: &mut Vec<LogGroup>, next_token: Option<&String>) {
         // delete more item
         // and after pushing new items, if there's next_token
@@ -28,7 +32,7 @@ impl LogGroupMenuList {
             self.items.remove(self.items.len() - 1);
         }
         self.items.append(&mut items);
-        if let Some(token) = next_token {
+        if let Some(_) = next_token {
             let mut more = LogGroup::default();
             more.arn = Some(String::from("more"));
             more.log_group_name = Some(String::from("More..."));
@@ -43,7 +47,7 @@ impl LogGroupMenuList {
     }
 }
 
-impl MenuList for LogGroupMenuList {
+impl StatefulList for LogGroupMenuList {
     fn get_labels(&self) -> Vec<String> {
         self.items
             .iter()
