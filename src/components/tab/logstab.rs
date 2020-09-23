@@ -22,53 +22,40 @@ use tui::{
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use std::io::Stdout;
-use rusoto_core::Region;
 use rusoto_logs::{
-    CloudWatchLogs, CloudWatchLogsClient, DescribeLogGroupsRequest, LogGroup,
+    CloudWatchLogsClient
 };
 use anyhow::Result;
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
-
-use crate::components::textinput::TextInputComponent;
+use crate::instruction::Instruction;
+use crate::globalstate::GlobalState;
 
 pub struct LogsTab
 {
     log_groups: LogGroupMenuList,
     is_menu_active: bool,
-    client: CloudWatchLogsClient,
-    next_token: Option<String>,
     log_area: Logs,
+    tx: Sender<Instruction>,
+    state: Arc<Mutex<GlobalState>>,
 }
 
 impl LogsTab {
-    pub async fn new(log_groups: LogGroupMenuList, region: Region) -> Result<LogsTab> {
+    pub async fn new(log_groups: LogGroupMenuList, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Result<LogsTab> {
         // TODO: remove this expression by sharing region
-        let region_c = region.clone();
-        let mut tab = LogsTab {
+        let region_c = rusoto_core::Region::ApNortheast1;
+        let child_tx = Sender::clone(&tx);
+        let tab = LogsTab {
             log_groups,
             is_menu_active: true,
-            client: CloudWatchLogsClient::new(region),
-            next_token: None,
-            log_area: Logs::new("aaaaa", CloudWatchLogsClient::new(region_c)),
+            log_area: Logs::new("Logs", CloudWatchLogsClient::new(region_c)),
+            tx,
+            state,
         };
-        tab.fetch_log_groups().await?;
+        // tab.fetch_log_groups().await?;
+        child_tx.send(Instruction::FetchLogGroups)?;
         Ok(tab)
-    }
-
-    async fn fetch_log_groups(&mut self) -> Result<()> {
-        let request = DescribeLogGroupsRequest {
-            limit: Some(50),
-            log_group_name_prefix: None,
-            next_token: self.next_token.clone(),
-        };
-        let response = self.client.describe_log_groups(request).await?;
-        self.next_token = response.next_token;
-        let mut log_groups = match response.log_groups {
-            Some(log_groups) => log_groups,
-            None => vec![],
-        };
-        self.log_groups.push_items(&mut log_groups, self.next_token.as_ref());
-        Ok(())
     }
 
     fn activate_menu_area(&mut self) {
@@ -92,7 +79,12 @@ impl Drawable for LogsTab {
                 Constraint::Percentage(70),
             ].as_ref())
             .split(area);
-        let labels = self.log_groups.get_labels();
+        let labels = if let Ok(m_guard) = self.state.try_lock() {
+            self.log_groups = m_guard.log_groups.clone_with_state(self.log_groups.get_state());
+            self.log_groups.get_labels()
+        } else {
+            vec![]
+        };
         let log_group_items: Vec<ListItem> = labels.iter()
             .map(|i| ListItem::new(i.as_ref())).collect();
         let log_list_block = List::new(log_group_items)
@@ -133,8 +125,14 @@ impl Drawable for LogsTab {
                 KeyCode::Enter => {
                     if let Some(state) = self.log_groups.get_state() {
                         if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-                            if let Some(_) = self.next_token {
-                                self.fetch_log_groups().await;
+                            if self.log_groups.has_more_items() {
+                                // self.fetch_log_groups().await;
+                                self.tx.send(Instruction::FetchLogGroups).unwrap();
+                            } else {
+                                if let Some(idx) = state.selected() {
+                                    self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
+                                    self.activate_log_area();
+                                }
                             }
                         } else {
                             if let Some(idx) = state.selected() {

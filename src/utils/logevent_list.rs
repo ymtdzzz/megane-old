@@ -1,7 +1,7 @@
 use super::StatefulTable;
 use tui::widgets::TableState;
 use rusoto_logs::FilteredLogEvent;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 
 #[derive(Debug)]
 pub struct LogEventList {

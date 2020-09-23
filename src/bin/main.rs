@@ -13,20 +13,26 @@ use crossterm::{
 use std::{
     io::{stdout, Write},
     time::{Duration, Instant},
-    sync::mpsc,
+    sync::{mpsc, Arc, Mutex},
     thread,
 };
 use clap::{
     crate_authors, crate_description, crate_name, crate_version,
-    App as ClapApp, Arg, SubCommand,
+    App as ClapApp,
 };
 use tui::{
     backend::CrosstermBackend,
     Terminal,
 };
 use anyhow::Result;
+use rusoto_core::Region;
+use rusoto_logs::{
+    CloudWatchLogs,
+    CloudWatchLogsClient,
+    DescribeLogGroupsRequest,
+};
 
-use megane::{ui, app::App};
+use megane::{ui, app::App, instruction::Instruction, globalstate::GlobalState};
 
 enum Event<I> {
     Input(I),
@@ -51,7 +57,6 @@ async fn main() -> Result<()> {
 
     // input handling
     let (tx, rx) = mpsc::channel();
-
     let tick_rate = Duration::from_millis(200);
     thread::spawn(move || {
         let mut last_tick = Instant::now();
@@ -68,7 +73,39 @@ async fn main() -> Result<()> {
         }
     });
 
-    let mut app = App::new().await?; 
+    // AWS SDK networking
+    let (aws_tx, aws_rx) = mpsc::channel::<Instruction>();
+    let state = Arc::new(Mutex::new(GlobalState::new()));
+    let state0 = Arc::clone(&state);
+    tokio::spawn(async move {
+        let client = CloudWatchLogsClient::new(Region::ApNortheast1);
+        loop {
+            let instruction = aws_rx.recv().unwrap();
+            match instruction {
+                Instruction::FetchLogEvents => {},
+                Instruction::FetchLogGroups => {
+                    let request = DescribeLogGroupsRequest {
+                        limit: Some(3),
+                        log_group_name_prefix: None,
+                        next_token: state0.lock().unwrap().log_groups_next_token.clone(),
+                    };
+                    let response = client.describe_log_groups(request).await;
+                    if let Ok(res) = response {
+                        let mut state = state0.lock().unwrap();
+                        state.log_groups_next_token = res.next_token;
+                        let mut log_groups = match res.log_groups {
+                            Some(log_groups) => log_groups,
+                            None => vec![],
+                        };
+                        let token = state.log_groups_next_token.clone();
+                        state.log_groups.push_items(&mut log_groups, token.as_ref());
+                    }
+                }
+            }
+        }
+    });
+
+    let mut app = App::new(aws_tx, state).await?; 
 
     terminal.clear()?;
 

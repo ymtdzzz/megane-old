@@ -12,7 +12,7 @@ use tui::{
     },
     Frame,
 };
-use crossterm::event::{KeyEvent, KeyCode};
+use crossterm::event::KeyEvent;
 use std::io::Stdout;
 use async_trait::async_trait;
 
@@ -36,11 +36,7 @@ impl Drawable for MetricsTab {
         f.render_widget(block, chunks[0]);
     }
 
-    async fn handle_event(&mut self, event: KeyEvent) -> bool {
-        let mut solved = true;
-        match event.code {
-            _ => solved = false
-        }
-        solved
+    async fn handle_event(&mut self, _event: KeyEvent) -> bool {
+        false
     }
 }

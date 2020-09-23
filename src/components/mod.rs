@@ -6,7 +6,6 @@ use tui::{
 use crossterm::event::KeyEvent;
 use std::io::Stdout;
 use async_trait::async_trait;
-use core::future::Future;
 
 pub mod tab;
 pub mod textinput;

@@ -24,8 +24,15 @@ impl LogGroupMenuList {
         self.items[idx].log_group_name.clone()
     }
 
+    pub fn clone_with_state(&self, state: Option<ListState>) -> Self {
+        Self {
+            items: self.items.clone(),
+            state,
+        }
+    }
+
     pub fn push_items(&mut self, mut items: &mut Vec<LogGroup>, next_token: Option<&String>) {
-        // delete more item
+        // delete 'more' item
         // and after pushing new items, if there's next_token
         // reinsert button element to the end of vector.
         if self.items.len() > 0 {
@@ -43,6 +50,14 @@ impl LogGroupMenuList {
     pub fn delete_item(&mut self, idx: usize) {
         if self.items.len() > idx {
             self.items.remove(idx);
+        }
+    }
+
+    pub fn has_more_items(&self) -> bool {
+        if let Some(last) = self.items.last() {
+            last.arn == Some(String::from("more"))
+        } else {
+            false
         }
     }
 }

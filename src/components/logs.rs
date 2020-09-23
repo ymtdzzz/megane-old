@@ -5,7 +5,7 @@ use crate::components::{
 use crate::utils::logevent_list::LogEventList;
 use crate::utils::StatefulTable;
 use rusoto_logs::{
-    CloudWatchLogs, CloudWatchLogsClient, FilteredLogEvent, FilterLogEventsRequest
+    CloudWatchLogs, CloudWatchLogsClient, FilterLogEventsRequest
 };
 use tui::{
     backend::CrosstermBackend,
@@ -18,23 +18,16 @@ use tui::{
     widgets::{
         Block,
         Borders,
-        List,
-        ListItem,
         Table,
         Row,
-        TableState,
     },
-    style::{Style, Color, Modifier},
+    style::{Style, Color},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
 use std::io::Stdout;
 use anyhow::Result;
 use async_trait::async_trait;
-use core::slice::Iter;
-use std::iter::Map;
-use core::fmt::Display;
-use tokio::task;
 
 pub struct Logs {
     search_area: TextInputComponent,
@@ -49,8 +42,8 @@ pub struct Logs {
 
 impl Logs {
     pub fn new(title: &str, client: CloudWatchLogsClient) -> Self {
-        let labels: Vec<Vec<String>> = vec![vec![]];
-        let rows = labels.iter().map(|i| Row::Data(i.iter()));
+        // let labels: Vec<Vec<String>> = vec![vec![]];
+        // let rows = labels.iter().map(|i| Row::Data(i.iter()));
         Self {
             search_area: TextInputComponent::new("Filter", ""),
             client,
@@ -164,7 +157,7 @@ impl Drawable for Logs {
                 match event.code {
                     KeyCode::Enter => {
                         self.event_list.clear_items();
-                        self.fetch_log_events().await;
+                        self.fetch_log_events().await.unwrap();
                         self.activate_logs_area();
                     },
                     _ => solved = false

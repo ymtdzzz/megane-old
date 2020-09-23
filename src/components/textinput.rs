@@ -7,7 +7,6 @@ use tui::{
     style::{Style, Color},
 };
 use crossterm::event::{KeyEvent, KeyCode};
-use anyhow::Result;
 use std::io::Stdout;
 use async_trait::async_trait;
 
