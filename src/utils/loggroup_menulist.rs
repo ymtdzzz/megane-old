@@ -36,9 +36,6 @@ impl LogGroupMenuList {
     }
 
     pub fn push_items(&mut self, mut items: &mut Vec<LogGroup>, next_token: Option<&String>) {
-        // delete 'more' item
-        // and after pushing new items, if there's next_token
-        // reinsert button element to the end of vector.
         if self.items.len() > 0 {
             self.items.remove(self.items.len() - 1);
         }
@@ -63,6 +60,16 @@ impl LogGroupMenuList {
         } else {
             false
         }
+    }
+
+    pub fn filter_items(&mut self, query: &str) {
+        self.items = self.items.iter().filter(|&item| {
+            if let Some(log_group_name) = &item.log_group_name {
+                log_group_name.contains(query)
+            } else {
+                false
+            }
+        }).cloned().collect();
     }
 }
 

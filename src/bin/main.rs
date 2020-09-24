@@ -107,21 +107,26 @@ async fn main() -> Result<()> {
                 },
                 Instruction::FetchLogGroups => {
                     state0.lock().unwrap().log_groups_fething = true;
-                    let request = DescribeLogGroupsRequest {
-                        limit: Some(3),
-                        log_group_name_prefix: None,
-                        next_token: state0.lock().unwrap().log_groups_next_token.clone(),
-                    };
-                    let response = client.describe_log_groups(request).await;
-                    if let Ok(res) = response {
-                        let mut state = state0.lock().unwrap();
-                        state.log_groups_next_token = res.next_token;
-                        let mut log_groups = match res.log_groups {
-                            Some(log_groups) => log_groups,
-                            None => vec![],
+                    loop {
+                        let request = DescribeLogGroupsRequest {
+                            limit: Some(50),
+                            log_group_name_prefix: None,
+                            next_token: state0.lock().unwrap().log_groups_next_token.clone(),
                         };
-                        let token = state.log_groups_next_token.clone();
-                        state.log_groups.push_items(&mut log_groups, token.as_ref());
+                        let response = client.describe_log_groups(request).await;
+                        if let Ok(res) = response {
+                            let mut state = state0.lock().unwrap();
+                            state.log_groups_next_token = res.next_token;
+                            let mut log_groups = match res.log_groups {
+                                Some(log_groups) => log_groups,
+                                None => vec![],
+                            };
+                            let token = state.log_groups_next_token.clone();
+                            state.log_groups.push_items(&mut log_groups, token.as_ref());
+                            if let None = token {
+                                break;
+                            }
+                        }
                     }
                     state0.lock().unwrap().log_groups_fething = false;
                 }

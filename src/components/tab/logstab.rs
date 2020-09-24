@@ -39,6 +39,7 @@ pub struct LogsTab
     log_area: Logs,
     tx: Sender<Instruction>,
     state: Arc<Mutex<GlobalState>>,
+    query: Option<String>,
 }
 
 impl LogsTab {
@@ -53,6 +54,7 @@ impl LogsTab {
             log_area: Logs::new("Logs", CloudWatchLogsClient::new(region_c), child_state),
             tx,
             state,
+            query: None,
         };
         // tab.fetch_log_groups().await?;
         child_tx.send(Instruction::FetchLogGroups)?;
@@ -68,6 +70,22 @@ impl LogsTab {
         self.is_menu_active = false;
         self.log_area.select();
     }
+
+    fn push_char_to_query(&mut self, ch: char) {
+        if let Some(query) = &mut self.query {
+            query.push(ch);
+            self.query = Some(query.clone());
+        } else {
+            self.query = Some(ch.to_string());
+        }
+    }
+
+    fn pop_char_from_query(&mut self) {
+        if let Some(query) = &mut self.query.take() {
+            query.pop();
+            self.query = Some(query.clone());
+        }
+    }
 }
 
 #[async_trait]
@@ -82,6 +100,9 @@ impl Drawable for LogsTab {
             .split(area);
         let labels = if let Ok(m_guard) = self.state.try_lock() {
             self.log_groups = m_guard.log_groups.clone_with_state(self.log_groups.get_state());
+            if let Some(query) = &self.query {
+                self.log_groups.filter_items(query.as_str());
+            }
             self.log_groups.get_labels()
         } else {
             vec![]
@@ -99,7 +120,11 @@ impl Drawable for LogsTab {
             );
         let block = if let Ok(s) = self.state.try_lock() {
             if !s.log_groups_fething {
-                block.title("Log Groups")
+                if let Some(query) = &self.query {
+                    block.title("Log Groups [".to_owned() + query.as_str() + "]")
+                } else {
+                    block.title("Log Groups")
+                }
             } else {
                 block.title("Log Groups [Fetching ...]")
             }
@@ -128,19 +153,19 @@ impl Drawable for LogsTab {
             match event.code {
                 KeyCode::Down => {
                     self.log_groups.next();
-                    if let Some(s) = self.log_groups.get_state() {
-                        if let Some(i) = s.selected() {
-                            if let Some(item) = self.log_groups.get_item(i) {
-                                let log_group_name = if let Some(name) = item.log_group_name.as_ref() {
-                                    name.clone()
-                                } else {
-                                    String::from("")
-                                };
-                                self.tx.send(Instruction::FetchLogEvents(log_group_name, String::from(""))).unwrap();
-                            }
-                        }
-                        // self.tx.send(Instruction::FetchLogEvents(self.))
-                    }
+                    // if let Some(s) = self.log_groups.get_state() {
+                    //     if let Some(i) = s.selected() {
+                    //         if let Some(item) = self.log_groups.get_item(i) {
+                    //             let log_group_name = if let Some(name) = item.log_group_name.as_ref() {
+                    //                 name.clone()
+                    //             } else {
+                    //                 String::from("")
+                    //             };
+                                // self.tx.send(Instruction::FetchLogEvents(log_group_name, String::from(""))).unwrap();
+                    //         }
+                    //     }
+                    //     // self.tx.send(Instruction::FetchLogEvents(self.))
+                    // }
                 },
                 KeyCode::Up => self.log_groups.previous(),
                 KeyCode::Enter => {
@@ -162,6 +187,12 @@ impl Drawable for LogsTab {
                             }
                         };
                     }
+                },
+                KeyCode::Char(ch) => {
+                    self.push_char_to_query(ch);
+                },
+                KeyCode::Backspace => {
+                    self.pop_char_from_query();
                 },
                 _ => solved = false
             }
