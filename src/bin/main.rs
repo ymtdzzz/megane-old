@@ -30,6 +30,7 @@ use rusoto_logs::{
     CloudWatchLogs,
     CloudWatchLogsClient,
     DescribeLogGroupsRequest,
+    FilterLogEventsRequest,
 };
 
 use megane::{ui, app::App, instruction::Instruction, globalstate::GlobalState};
@@ -82,8 +83,30 @@ async fn main() -> Result<()> {
         loop {
             let instruction = aws_rx.recv().unwrap();
             match instruction {
-                Instruction::FetchLogEvents => {},
+                Instruction::FetchLogEvents(log_group_name, filter_pattern) => {
+                    state0.lock().unwrap().log_events_fetching = false;
+                    if log_group_name != state0.lock().unwrap().log_events_selected_log_group_name {
+                        state0.lock().unwrap().log_events.clear_items();
+                    }
+                    let mut request = FilterLogEventsRequest::default();
+                    request.log_group_name = log_group_name;
+                    request.filter_pattern = Some(filter_pattern);
+                    request.limit = Some(100);
+                    let response = client.filter_log_events(request).await;
+                    if let Ok(res) = response {
+                        let mut state = state0.lock().unwrap();
+                        state.log_events_next_token = res.next_token;
+                        let mut events = match res.events {
+                            Some(events) => events,
+                            None => vec![],
+                        };
+                        let token = state.log_events_next_token.clone();
+                        state.log_events.push_items(&mut events, token.as_ref());
+                    }
+                    state0.lock().unwrap().log_events_fetching = false;
+                },
                 Instruction::FetchLogGroups => {
+                    state0.lock().unwrap().log_groups_fething = true;
                     let request = DescribeLogGroupsRequest {
                         limit: Some(3),
                         log_group_name_prefix: None,
@@ -100,6 +123,7 @@ async fn main() -> Result<()> {
                         let token = state.log_groups_next_token.clone();
                         state.log_groups.push_items(&mut log_groups, token.as_ref());
                     }
+                    state0.lock().unwrap().log_groups_fething = false;
                 }
             }
         }

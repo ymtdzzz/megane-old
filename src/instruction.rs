@@ -1,4 +1,4 @@
 pub enum Instruction {
     FetchLogGroups,
-    FetchLogEvents,
+    FetchLogEvents(String, String),
 }

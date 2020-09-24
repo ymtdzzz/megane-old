@@ -87,19 +87,26 @@ impl Drawable for LogsTab {
         };
         let log_group_items: Vec<ListItem> = labels.iter()
             .map(|i| ListItem::new(i.as_ref())).collect();
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(
+                if self.is_menu_active {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::White)
+                }
+            );
+        let block = if let Ok(s) = self.state.try_lock() {
+            if !s.log_groups_fething {
+                block.title("Log Groups")
+            } else {
+                block.title("Log Groups [Fetching ...]")
+            }
+        } else {
+            block.title("Log Groups [Fetching ...]")
+        };
         let log_list_block = List::new(log_group_items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(
-                        if self.is_menu_active {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default().fg(Color::White)
-                        }
-                    )
-                    .title("Log Groups")
-            )
+            .block(block)
             .highlight_style(
                 Style::default()
                     .add_modifier(Modifier::BOLD),
@@ -120,6 +127,19 @@ impl Drawable for LogsTab {
             match event.code {
                 KeyCode::Down => {
                     self.log_groups.next();
+                    if let Some(s) = self.log_groups.get_state() {
+                        if let Some(i) = s.selected() {
+                            if let Some(item) = self.log_groups.get_item(i) {
+                                let log_group_name = if let Some(name) = item.log_group_name.as_ref() {
+                                    name.clone()
+                                } else {
+                                    String::from("")
+                                };
+                                self.tx.send(Instruction::FetchLogEvents(log_group_name, String::from(""))).unwrap();
+                            }
+                        }
+                        // self.tx.send(Instruction::FetchLogEvents(self.))
+                    }
                 },
                 KeyCode::Up => self.log_groups.previous(),
                 KeyCode::Enter => {

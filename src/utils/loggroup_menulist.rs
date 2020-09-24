@@ -20,6 +20,10 @@ impl LogGroupMenuList {
         self.items = items;
     }
 
+    pub fn get_item(&self, idx: usize) -> Option<&LogGroup> {
+        self.items.get(idx)
+    }
+
     pub fn get_log_group_name(&self, idx: usize) -> Option<String> {
         self.items[idx].log_group_name.clone()
     }
