@@ -46,10 +46,11 @@ impl LogsTab {
         // TODO: remove this expression by sharing region
         let region_c = rusoto_core::Region::ApNortheast1;
         let child_tx = Sender::clone(&tx);
+        let child_state = Arc::clone(&state);
         let tab = LogsTab {
             log_groups,
             is_menu_active: true,
-            log_area: Logs::new("Logs", CloudWatchLogsClient::new(region_c)),
+            log_area: Logs::new("Logs", CloudWatchLogsClient::new(region_c), child_state),
             tx,
             state,
         };

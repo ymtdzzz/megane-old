@@ -4,6 +4,7 @@ use crate::components::{
 };
 use crate::utils::logevent_list::LogEventList;
 use crate::utils::StatefulTable;
+use crate::globalstate::GlobalState;
 use rusoto_logs::{
     CloudWatchLogs, CloudWatchLogsClient, FilterLogEventsRequest
 };
@@ -28,6 +29,7 @@ use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
 use std::io::Stdout;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
 
 pub struct Logs {
     search_area: TextInputComponent,
@@ -38,10 +40,11 @@ pub struct Logs {
     is_active: bool,
     is_search_active: bool,
     log_group_name: Option<String>,
+    state: Arc<Mutex<GlobalState>>,
 }
 
 impl Logs {
-    pub fn new(title: &str, client: CloudWatchLogsClient) -> Self {
+    pub fn new(title: &str, client: CloudWatchLogsClient, state: Arc<Mutex<GlobalState>>) -> Self {
         // let labels: Vec<Vec<String>> = vec![vec![]];
         // let rows = labels.iter().map(|i| Row::Data(i.iter()));
         Self {
@@ -53,6 +56,7 @@ impl Logs {
             is_active: false,
             is_search_active: false,
             log_group_name: None,
+            state,
         }
     }
 
@@ -115,7 +119,11 @@ impl Drawable for Logs {
                 Constraint::Percentage(100),
             ].as_ref())
             .split(area);
-        let labels: Vec<Vec<String>> = self.event_list.get_labels();
+        let labels: Vec<Vec<String>> = if let Ok(state) = self.state.try_lock() {
+            state.log_events.get_labels()
+        } else {
+            self.event_list.get_labels()
+        };
         let rows = labels.iter().map(|i| Row::Data(i.iter()));
         let event_table_block = Table::new(
             ["Timestamp", "Message"].iter(),
