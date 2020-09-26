@@ -89,16 +89,22 @@ async fn main() -> Result<()> {
                         state0.lock().unwrap().log_events.clear_items();
                     }
                     let mut request = FilterLogEventsRequest::default();
-                    request.log_group_name = log_group_name;
+                    request.log_group_name = log_group_name.clone();
                     request.filter_pattern = Some(filter_pattern);
-                    request.limit = Some(100);
+                    request.next_token = state0.lock().unwrap().log_events_next_token.clone();
+                    request.limit = Some(50);
                     let response = client.filter_log_events(request).await;
-                    if let Ok(res) = response {
+                    if let Ok(mut res) = response {
                         let mut state = state0.lock().unwrap();
-                        state.log_events_next_token = res.next_token;
-                        let mut events = match res.events {
-                            Some(events) => events,
-                            None => vec![],
+                        state.log_events_selected_log_group_name = log_group_name;
+                        state.log_events_next_token = res.next_token.clone();
+                        let mut empty = vec![];
+                        let mut events = match &mut res.events {
+                            Some(events) => {
+                                // events.reverse();
+                                events
+                            },
+                            None => &mut empty,
                         };
                         let token = state.log_events_next_token.clone();
                         state.log_events.push_items(&mut events, token.as_ref());

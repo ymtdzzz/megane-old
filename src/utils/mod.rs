@@ -3,16 +3,30 @@ use tui::widgets::{ListState, TableState};
 pub mod loggroup_menulist;
 pub mod logevent_list;
 
+/// insert new lines at specified positions
+pub fn insert_new_line_at(at: usize, string: &str) -> String {
+    let length = string.len();
+    let mut current_pos = at;
+    let mut result = string.to_string();
+    while current_pos < length {
+        let (first, last) = result.as_str().split_at(at);
+        result = format!("{}\n{}", first, last);
+        current_pos += at;
+    }
+    result
+}
+
 pub trait StatefulList {
     fn get_labels(&self) -> Vec<String>;
     fn get_state(&mut self) -> Option<ListState>;
     fn set_state(&mut self, new_state: ListState);
     fn next(&mut self) {
         if let Some(mut state) = self.get_state() {
+            let max = self.get_labels().len() - 1;
             let i = match state.selected() {
                 Some(i) => {
-                    if i >= self.get_labels().len() - 1 {
-                        0
+                    if i >= max {
+                        max
                     } else {
                         i + 1
                     }
@@ -45,12 +59,15 @@ pub trait StatefulTable {
     fn get_labels(&self) -> Vec<Vec<String>>;
     fn get_state(&mut self) -> Option<TableState>;
     fn set_state(&mut self, new_state: TableState);
-    fn next(&mut self) {
+    fn next(&mut self) -> bool {
+        let mut fetch_flg = false;
+        let max = self.get_labels().len() - 1;
         if let Some(mut state) = self.get_state() {
             let i = match state.selected() {
                 Some(i) => {
-                    if i >= self.get_labels().len() - 1 {
-                        0
+                    if i >= max {
+                        fetch_flg = true;
+                        max
                     } else {
                         i + 1
                     }
@@ -60,15 +77,16 @@ pub trait StatefulTable {
             state.select(Some(i));
             self.set_state(state);
         }
+        fetch_flg
     }
     fn previous(&mut self) {
         if let Some(mut state) = self.get_state() {
             let i = match state.selected() {
                 Some(i) => {
                     if i == 0 {
-                        self.get_labels().len() - 1
+                        0
                     } else {
-                        i - 1
+                        i.saturating_sub(1)
                     }
                 },
                 None => 0,
@@ -77,12 +95,15 @@ pub trait StatefulTable {
             self.set_state(state);
         }
     }
-    fn next_by(&mut self, size: usize) {
+    fn next_by(&mut self, size: usize) -> bool {
+        let mut fetch_flag = false;
         if let Some(mut state) = self.get_state() {
+            let max = self.get_labels().len() - 1;
             let i = match state.selected() {
                 Some(i) => {
-                    if i >= self.get_labels().len() - size {
-                        0
+                    if i >= max {
+                        fetch_flag = true;
+                        max
                     } else {
                         i + size
                     }
@@ -92,15 +113,16 @@ pub trait StatefulTable {
             state.select(Some(i));
             self.set_state(state);
         }
+        fetch_flag
     }
     fn previous_by(&mut self, size: usize) {
         if let Some(mut state) = self.get_state() {
             let i = match state.selected() {
                 Some(i) => {
                     if i == 0 {
-                        self.get_labels().len() - size
+                        0
                     } else {
-                        i - size
+                        i.saturating_sub(size)
                     }
                 },
                 None => 0,

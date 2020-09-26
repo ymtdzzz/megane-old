@@ -4,10 +4,9 @@ use crate::components::{
 };
 use crate::utils::logevent_list::LogEventList;
 use crate::utils::StatefulTable;
+use crate::utils;
 use crate::globalstate::GlobalState;
-use rusoto_logs::{
-    CloudWatchLogs, CloudWatchLogsClient, FilterLogEventsRequest
-};
+use crate::instruction::Instruction;
 use tui::{
     backend::CrosstermBackend,
     layout::{
@@ -16,47 +15,46 @@ use tui::{
         Direction,
         Rect,
     },
+    text::Text,
     widgets::{
         Block,
         Borders,
         Table,
         Row,
+        Paragraph,
     },
     style::{Style, Color},
     Frame,
 };
 use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
 use std::io::Stdout;
-use anyhow::Result;
 use async_trait::async_trait;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 pub struct Logs {
     search_area: TextInputComponent,
-    client: CloudWatchLogsClient,
     title: String,
     event_list: LogEventList,
-    next_token: Option<String>,
     is_active: bool,
     is_search_active: bool,
     log_group_name: Option<String>,
     state: Arc<Mutex<GlobalState>>,
+    cached_labels: Vec<Vec<String>>,
+    tx: Sender<Instruction>,
 }
 
 impl Logs {
-    pub fn new(title: &str, client: CloudWatchLogsClient, state: Arc<Mutex<GlobalState>>) -> Self {
-        // let labels: Vec<Vec<String>> = vec![vec![]];
-        // let rows = labels.iter().map(|i| Row::Data(i.iter()));
+    pub fn new(title: &str, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Self {
         Self {
             search_area: TextInputComponent::new("Filter", ""),
-            client,
             title: title.to_string(),
             event_list: LogEventList::new(vec![]),
-            next_token: None,
             is_active: false,
             is_search_active: false,
             log_group_name: None,
             state,
+            cached_labels: vec![vec![]],
+            tx,
         }
     }
 
@@ -89,24 +87,19 @@ impl Logs {
         self.log_group_name = log_group_name;
     }
 
-    pub async fn fetch_log_events(&mut self) -> Result<()> {
-        let mut request = FilterLogEventsRequest::default();
-        let filter_pattern = Some(self.search_area.get_text().clone());
-        let log_group_name = self.log_group_name.clone().unwrap_or(String::from(""));
-        request.filter_pattern = filter_pattern;
-        request.log_group_name = log_group_name;
-        request.limit = Some(100);
-        let response = self.client.filter_log_events(request).await?;
-        self.next_token = response.next_token;
-        let mut events = match response.events {
-            Some(events) => events,
-            None => vec![],
-        };
-        self.event_list.push_items(&mut events, self.next_token.as_ref());
-        Ok(())
+    pub fn get_log_group_name(&self) -> Option<String> {
+        self.log_group_name.clone()
     }
 
-
+    fn fetch_log_events(&self) {
+        if let Some(log_group_name) = &self.log_group_name {
+            self.tx.send(Instruction::FetchLogEvents(
+                log_group_name.clone(),
+                // TODO: using filter query
+                "".to_string()
+            )).unwrap();
+        }
+    }
 }
 
 #[async_trait]
@@ -115,19 +108,37 @@ impl Drawable for Logs {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),
-                Constraint::Percentage(100),
+                Constraint::Percentage(10),
+                Constraint::Percentage(70),
+                Constraint::Percentage(20),
             ].as_ref())
             .split(area);
-        let labels: Vec<Vec<String>> = if let Ok(state) = self.state.try_lock() {
-            state.log_events.get_labels()
-        } else {
-            self.event_list.get_labels()
+        let log_text = match &mut self.state.try_lock() {
+            Ok(m_guard) => {
+                if !self.event_list.is_same(&m_guard.log_events) {
+                    self.event_list = m_guard.log_events.clone_with_state(self.event_list.get_state());
+                    self.cached_labels = self.event_list.get_labels();
+                } else {
+                }
+                let mut result = String::from("");
+                if let Some(s) = self.event_list.get_state() {
+                    if let Some(idx) = s.selected() {
+                        if let Some(msg) = m_guard.log_events.get_log_event_text(idx) {
+                            result = utils::insert_new_line_at(
+                                chunks[2].width as usize - 2,
+                                msg.as_str(),
+                            );
+                        }
+                    }
+                };
+                result
+            },
+            Err(_) => String::from("")
         };
-        let rows = labels.iter().map(|i| Row::Data(i.iter()));
+        let rows = self.cached_labels.iter().map(|i| Row::Data(i.iter()));
         let event_table_block = Table::new(
             ["Timestamp", "Message"].iter(),
-            rows
+            rows,
         )
             .block(
                 Block::default()
@@ -149,9 +160,18 @@ impl Drawable for Logs {
                 Constraint::Percentage(15),
                 Constraint::Percentage(100),
             ]);
+        let text_area = Paragraph::new(
+            Text::from(log_text.as_str())
+        )
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("full text")
+            );
         self.search_area.draw(f, chunks[0]);
         if let Some(ref mut state) = self.event_list.get_state() {
             f.render_stateful_widget(event_table_block, chunks[1], state);
+            f.render_widget(text_area, chunks[2]);
         } else {
             panic!("state NONE");
         }
@@ -165,7 +185,7 @@ impl Drawable for Logs {
                 match event.code {
                     KeyCode::Enter => {
                         self.event_list.clear_items();
-                        self.fetch_log_events().await.unwrap();
+                        self.fetch_log_events();
                         self.activate_logs_area();
                     },
                     _ => solved = false
@@ -183,16 +203,20 @@ impl Drawable for Logs {
             match event.code {
                 KeyCode::Down => {
                     if is_shift {
-                        self.event_list.next_by(10)
+                        if self.event_list.next_by(10) {
+                            self.fetch_log_events();
+                        }
                     } else {
-                        self.event_list.next()
+                        if self.event_list.next() {
+                            self.fetch_log_events();
+                        }
                     }
                 },
                 KeyCode::Up => {
                     if is_shift {
-                        self.event_list.previous_by(10)
+                        self.event_list.previous_by(10);
                     } else {
-                        self.event_list.previous()
+                        self.event_list.previous();
                     }
                 },
                 _ => solved = false

@@ -22,9 +22,6 @@ use tui::{
 };
 use crossterm::event::{KeyEvent, KeyCode};
 use std::io::Stdout;
-use rusoto_logs::{
-    CloudWatchLogsClient
-};
 use anyhow::Result;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -44,14 +41,13 @@ pub struct LogsTab
 
 impl LogsTab {
     pub async fn new(log_groups: LogGroupMenuList, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Result<LogsTab> {
-        // TODO: remove this expression by sharing region
-        let region_c = rusoto_core::Region::ApNortheast1;
         let child_tx = Sender::clone(&tx);
+        let child_tx2 = Sender::clone(&tx);
         let child_state = Arc::clone(&state);
         let tab = LogsTab {
             log_groups,
             is_menu_active: true,
-            log_area: Logs::new("Logs", CloudWatchLogsClient::new(region_c), child_state),
+            log_area: Logs::new("Logs", child_tx2, child_state),
             tx,
             state,
             query: None,
@@ -68,7 +64,7 @@ impl LogsTab {
 
     fn activate_log_area(&mut self) {
         self.is_menu_active = false;
-        self.log_area.select();
+        self.log_area.deselect();
     }
 
     fn push_char_to_query(&mut self, ch: char) {
@@ -153,39 +149,17 @@ impl Drawable for LogsTab {
             match event.code {
                 KeyCode::Down => {
                     self.log_groups.next();
-                    // if let Some(s) = self.log_groups.get_state() {
-                    //     if let Some(i) = s.selected() {
-                    //         if let Some(item) = self.log_groups.get_item(i) {
-                    //             let log_group_name = if let Some(name) = item.log_group_name.as_ref() {
-                    //                 name.clone()
-                    //             } else {
-                    //                 String::from("")
-                    //             };
-                                // self.tx.send(Instruction::FetchLogEvents(log_group_name, String::from(""))).unwrap();
-                    //         }
-                    //     }
-                    //     // self.tx.send(Instruction::FetchLogEvents(self.))
-                    // }
                 },
                 KeyCode::Up => self.log_groups.previous(),
                 KeyCode::Enter => {
                     if let Some(state) = self.log_groups.get_state() {
-                        if state.selected() == Some(self.log_groups.get_labels().len() - 1) {
-                            if self.log_groups.has_more_items() {
-                                // self.fetch_log_groups().await;
-                                self.tx.send(Instruction::FetchLogGroups).unwrap();
-                            } else {
-                                if let Some(idx) = state.selected() {
-                                    self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
-                                    self.activate_log_area();
-                                }
+                        if let Some(idx) = state.selected() {
+                            self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
+                            self.activate_log_area();
+                            if let Some(log_group_name) = self.log_area.get_log_group_name() {
+                                self.tx.send(Instruction::FetchLogEvents(log_group_name, "".to_string())).unwrap();
                             }
-                        } else {
-                            if let Some(idx) = state.selected() {
-                                self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
-                                self.activate_log_area();
-                            }
-                        };
+                        }
                     }
                 },
                 KeyCode::Char(ch) => {
