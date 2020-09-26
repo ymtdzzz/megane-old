@@ -22,7 +22,7 @@ pub trait StatefulList {
     fn set_state(&mut self, new_state: ListState);
     fn next(&mut self) {
         if let Some(mut state) = self.get_state() {
-            let max = self.get_labels().len() - 1;
+            let max = self.get_labels().len().saturating_sub(1);
             let i = match state.selected() {
                 Some(i) => {
                     if i >= max {
@@ -42,7 +42,7 @@ pub trait StatefulList {
             let i = match state.selected() {
                 Some(i) => {
                     if i == 0 {
-                        self.get_labels().len() - 1
+                        self.get_labels().len().saturating_sub(1)
                     } else {
                         i - 1
                     }
@@ -61,12 +61,11 @@ pub trait StatefulTable {
     fn set_state(&mut self, new_state: TableState);
     fn next(&mut self) -> bool {
         let mut fetch_flg = false;
-        let max = self.get_labels().len() - 1;
+        let max = self.get_labels().len().saturating_sub(1);
         if let Some(mut state) = self.get_state() {
             let i = match state.selected() {
                 Some(i) => {
                     if i >= max {
-                        fetch_flg = true;
                         max
                     } else {
                         i + 1
@@ -98,11 +97,10 @@ pub trait StatefulTable {
     fn next_by(&mut self, size: usize) -> bool {
         let mut fetch_flag = false;
         if let Some(mut state) = self.get_state() {
-            let max = self.get_labels().len() - 1;
+            let max = self.get_labels().len().saturating_sub(1);
             let i = match state.selected() {
                 Some(i) => {
                     if i >= max {
-                        fetch_flag = true;
                         max
                     } else {
                         i + size

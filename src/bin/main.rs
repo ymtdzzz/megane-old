@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
                     request.log_group_name = log_group_name.clone();
                     request.filter_pattern = Some(filter_pattern);
                     request.next_token = state0.lock().unwrap().log_events_next_token.clone();
-                    request.limit = Some(50);
+                    request.limit = Some(10);
                     let response = client.filter_log_events(request).await;
                     if let Ok(mut res) = response {
                         let mut state = state0.lock().unwrap();

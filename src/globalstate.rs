@@ -25,4 +25,9 @@ impl GlobalState {
             log_events_selected_log_group_name: String::from(""),
         }
     }
+
+    pub fn reset_log_event_results(&mut self) {
+        self.log_events.clear_items();
+        self.log_events_next_token = None;
+    }
 }

@@ -46,7 +46,7 @@ pub struct Logs {
 impl Logs {
     pub fn new(title: &str, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Self {
         Self {
-            search_area: TextInputComponent::new("Filter", ""),
+            search_area: TextInputComponent::new("Filter[f]", ""),
             title: title.to_string(),
             event_list: LogEventList::new(vec![]),
             is_active: false,
@@ -60,12 +60,11 @@ impl Logs {
 
     pub fn select(&mut self) {
         self.is_active = true;
-        self.activate_search_area();
+        self.activate_logs_area();
     }
 
     pub fn deselect(&mut self) {
         self.is_active = false;
-        self.activate_logs_area();
     }
 
     pub fn activate_search_area(&mut self) {
@@ -91,12 +90,15 @@ impl Logs {
         self.log_group_name.clone()
     }
 
+    fn clear_cache(&mut self) {
+        self.cached_labels = vec![];
+    }
+
     fn fetch_log_events(&self) {
         if let Some(log_group_name) = &self.log_group_name {
             self.tx.send(Instruction::FetchLogEvents(
                 log_group_name.clone(),
-                // TODO: using filter query
-                "".to_string()
+                self.search_area.get_text().to_string(),
             )).unwrap();
         }
     }
@@ -108,8 +110,8 @@ impl Drawable for Logs {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(10),
-                Constraint::Percentage(70),
+                Constraint::Length(3),
+                Constraint::Max(100),
                 Constraint::Percentage(20),
             ].as_ref())
             .split(area);
@@ -118,7 +120,6 @@ impl Drawable for Logs {
                 if !self.event_list.is_same(&m_guard.log_events) {
                     self.event_list = m_guard.log_events.clone_with_state(self.event_list.get_state());
                     self.cached_labels = self.event_list.get_labels();
-                } else {
                 }
                 let mut result = String::from("");
                 if let Some(s) = self.event_list.get_state() {
@@ -185,13 +186,15 @@ impl Drawable for Logs {
                 match event.code {
                     KeyCode::Enter => {
                         self.event_list.clear_items();
+                        self.clear_cache();
+                        self.state.lock().unwrap().reset_log_event_results();
                         self.fetch_log_events();
                         self.activate_logs_area();
                     },
                     _ => solved = false
                 }
             } else {
-                solved = false
+                solved = true
             }
         } else {
             // logs area event handling
@@ -218,6 +221,9 @@ impl Drawable for Logs {
                     } else {
                         self.event_list.previous();
                     }
+                },
+                KeyCode::Char('f') => {
+                    self.activate_search_area();
                 },
                 _ => solved = false
             }

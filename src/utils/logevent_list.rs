@@ -77,7 +77,7 @@ impl LogEventList {
         }
     }
 
-    fn is_last_more_item(&self) -> bool {
+    pub fn is_last_more_item(&self) -> bool {
         if let Some(last) = self.items.last() {
             last.event_id == Some(String::from("999"))
         } else {
@@ -126,6 +126,50 @@ impl StatefulTable for LogEventList {
     }
     fn set_state(&mut self, new_state: TableState) {
         self.state = Some(new_state);
+    }
+    fn next(&mut self) -> bool {
+        let mut fetch_flg = false;
+        let max = self.get_labels().len().saturating_sub(1);
+        if let Some(mut state) = self.get_state() {
+            let i = match state.selected() {
+                Some(i) => {
+                    if i >= max {
+                        if self.is_last_more_item() {
+                            fetch_flg = true;
+                        }
+                        max
+                    } else {
+                        i + 1
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
+        fetch_flg
+    }
+    fn next_by(&mut self, size: usize) -> bool {
+        let mut fetch_flag = false;
+        if let Some(mut state) = self.get_state() {
+            let max = self.get_labels().len().saturating_sub(1);
+            let i = match state.selected() {
+                Some(i) => {
+                    if i >= max {
+                        if self.is_last_more_item() {
+                            fetch_flag = true;
+                        }
+                        max
+                    } else {
+                        i + size
+                    }
+                },
+                None => 0,
+            };
+            state.select(Some(i));
+            self.set_state(state);
+        }
+        fetch_flag
     }
 }
 

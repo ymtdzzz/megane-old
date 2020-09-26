@@ -64,7 +64,7 @@ impl LogsTab {
 
     fn activate_log_area(&mut self) {
         self.is_menu_active = false;
-        self.log_area.deselect();
+        self.log_area.select();
     }
 
     fn push_char_to_query(&mut self, ch: char) {
