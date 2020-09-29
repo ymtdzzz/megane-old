@@ -155,14 +155,20 @@ impl Logs {
         }
     }
 
+    pub fn clear_results(&mut self) {
+        self.event_list.clear_items();
+        self.clear_cache();
+        self.state.lock().unwrap().reset_log_event_results();
+    }
+
     pub fn fetch_log_events(&self) {
         if let Some(log_group_name) = &self.log_group_name {
             let (start, end): (i64, i64) = self.get_search_range();
             self.tx.send(Instruction::FetchLogEvents(
                 log_group_name.clone(),
                 self.search_area.get_text().to_string(),
-                start,
-                end,
+                start.clone(),
+                end.clone(),
             )).unwrap();
         }
     }
@@ -197,6 +203,10 @@ impl Logs {
             SearchMode::All => {},
         }
         format!("{}{}{}{}{}{}{}", base, tail, onem, thirtym, oneh, twelveh, range)
+    }
+
+    fn clear_search_mode(&mut self) {
+        self.search_mode = SearchMode::All;
     }
 }
 
@@ -277,14 +287,83 @@ impl Drawable for Logs {
 
     async fn handle_event(&mut self, event: KeyEvent) -> bool {
         let mut solved = true;
+        let is_shift = if event.modifiers == KeyModifiers::SHIFT {
+            true
+        } else {
+            false
+        };
+        let is_ctrl = if event.modifiers == KeyModifiers::CONTROL {
+            true
+        } else {
+            false
+        };
+        if !self.search_area.is_normal_mode() {} else {
+            if is_ctrl {
+                match event.code {
+                    KeyCode::Char('z') => {
+                        if let SearchMode::Tail = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::Tail;
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    KeyCode::Char('x') => {
+                        if let SearchMode::OneM = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::OneM;
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    KeyCode::Char('c') => {
+                        if let SearchMode::ThirtyM = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::ThirtyM;
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    KeyCode::Char('v') => {
+                        if let SearchMode::OneH = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::OneH;
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    KeyCode::Char('b') => {
+                        if let SearchMode::TwelveH = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::TwelveH;
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    KeyCode::Char('n') => {
+                        if let SearchMode::Range(_, _) = self.search_mode {
+                            self.clear_search_mode();
+                        } else {
+                            self.search_mode = SearchMode::Range(0, 0);
+                        }
+                        self.clear_results();
+                        self.fetch_log_events();
+                    },
+                    _ => {},
+                }
+            }
+        }
         if self.is_search_active {
             // search area event handling
             if !self.search_area.handle_event(event).await {
                 match event.code {
                     KeyCode::Enter => {
-                        self.event_list.clear_items();
-                        self.clear_cache();
-                        self.state.lock().unwrap().reset_log_event_results();
+                        self.clear_results();
                         self.fetch_log_events();
                         self.activate_logs_area();
                     },
@@ -295,11 +374,6 @@ impl Drawable for Logs {
             }
         } else {
             // logs area event handling
-            let is_shift = if event.modifiers == KeyModifiers::SHIFT {
-                true
-            } else {
-                false
-            };
             match event.code {
                 KeyCode::Down => {
                     if is_shift {
