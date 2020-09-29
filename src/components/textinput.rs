@@ -67,6 +67,10 @@ impl TextInputComponent {
         }
     }
 
+    pub fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
+
     fn next_cursor(&mut self) {
         if let Some(pos) = self.next_char_position() {
             self.cursor_position = pos;

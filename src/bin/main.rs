@@ -83,7 +83,17 @@ async fn main() -> Result<()> {
         loop {
             let instruction = aws_rx.recv().unwrap();
             match instruction {
-                Instruction::FetchLogEvents(log_group_name, filter_pattern) => {
+                Instruction::FetchLogEvents(log_group_name, filter_pattern, start, end) => {
+                    let start = if start == 0 {
+                        None
+                    } else {
+                        Some(start)
+                    };
+                    let end = if end == 0 {
+                        None
+                    } else {
+                        Some(end)
+                    };
                     state0.lock().unwrap().log_events_fetching = false;
                     if log_group_name != state0.lock().unwrap().log_events_selected_log_group_name {
                         state0.lock().unwrap().log_events.clear_items();
@@ -92,6 +102,8 @@ async fn main() -> Result<()> {
                     request.log_group_name = log_group_name.clone();
                     request.filter_pattern = Some(filter_pattern);
                     request.next_token = state0.lock().unwrap().log_events_next_token.clone();
+                    request.start_time = start;
+                    request.end_time = end;
                     request.limit = Some(10);
                     let response = client.filter_log_events(request).await;
                     if let Ok(mut res) = response {

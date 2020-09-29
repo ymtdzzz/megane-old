@@ -28,8 +28,20 @@ use tui::{
 };
 use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
 use std::io::Stdout;
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex, mpsc::Sender};
+
+#[derive(Debug)]
+enum SearchMode {
+    Tail,
+    All,
+    OneM,
+    ThirtyM,
+    OneH,
+    TwelveH,
+    Range(i64, i64),
+}
 
 pub struct Logs {
     search_area: TextInputComponent,
@@ -41,12 +53,13 @@ pub struct Logs {
     state: Arc<Mutex<GlobalState>>,
     cached_labels: Vec<Vec<String>>,
     tx: Sender<Instruction>,
+    search_mode: SearchMode,
 }
 
 impl Logs {
     pub fn new(title: &str, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Self {
         Self {
-            search_area: TextInputComponent::new("Filter[f]", ""),
+            search_area: TextInputComponent::new("Filter(f)", ""),
             title: title.to_string(),
             event_list: LogEventList::new(vec![]),
             is_active: false,
@@ -55,6 +68,7 @@ impl Logs {
             state,
             cached_labels: vec![vec![]],
             tx,
+            search_mode: SearchMode::All,
         }
     }
 
@@ -94,13 +108,95 @@ impl Logs {
         self.cached_labels = vec![];
     }
 
-    fn fetch_log_events(&self) {
+    fn get_search_range(&self) -> (i64, i64) {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        match self.search_mode {
+            SearchMode::Tail => {
+                let start = now
+                    .checked_sub(Duration::from_secs(60))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                (start as i64, now.as_millis() as i64)
+            },
+            SearchMode::OneM => {
+                let start = now
+                    .checked_sub(Duration::from_secs(60))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                (start as i64, now.as_millis() as i64)
+            },
+            SearchMode::ThirtyM => {
+                let start = now
+                    .checked_sub(Duration::from_secs(900))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                (start as i64, now.as_millis() as i64)
+            },
+            SearchMode::OneH => {
+                let start = now
+                    .checked_sub(Duration::from_secs(3600))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                (start as i64, now.as_millis() as i64)
+            },
+            SearchMode::TwelveH => {
+                let start = now
+                    .checked_sub(Duration::from_secs(43200))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                (start as i64, now.as_millis() as i64)
+            },
+            SearchMode::All => {
+                (0, 0)
+            },
+            SearchMode::Range(start, end) => {
+                (start, end)
+            },
+        }
+    }
+
+    pub fn fetch_log_events(&self) {
         if let Some(log_group_name) = &self.log_group_name {
+            let (start, end): (i64, i64) = self.get_search_range();
             self.tx.send(Instruction::FetchLogEvents(
                 log_group_name.clone(),
                 self.search_area.get_text().to_string(),
+                start,
+                end,
             )).unwrap();
         }
+    }
+
+    fn get_search_area_title(&self) -> String {
+        let base = "Filter(f) - Mode: ";
+        let mut tail = "[ ]tail";
+        let mut onem = "[ ]1m";
+        let mut thirtym = "[ ]15m";
+        let mut oneh = "[ ]1h";
+        let mut twelveh = "[ ]12h";
+        let mut range = "[ ]range(2020-12-12-01:01:00~2020-12-15-01:00:30)";
+        match self.search_mode {
+            SearchMode::OneM => {
+                onem = "[x]1m";
+            },
+            SearchMode::ThirtyM => {
+                thirtym = "[x]15m";
+            },
+            SearchMode::OneH => {
+                oneh = "[x]1h";
+            },
+            SearchMode::TwelveH => {
+                twelveh = "[x]12h";
+            },
+            SearchMode::Range(start, end) => {
+                range = "[x]range(2020-12-12-01:01:00~2020-12-15-01:00:30)";
+            },
+            SearchMode::Tail => {
+                tail = "[x]tail";
+            },
+            SearchMode::All => {},
+        }
+        format!("{}{}{}{}{}{}{}", base, tail, onem, thirtym, oneh, twelveh, range)
     }
 }
 
@@ -161,6 +257,7 @@ impl Drawable for Logs {
                 Constraint::Percentage(15),
                 Constraint::Percentage(100),
             ]);
+        self.search_area.set_title(self.get_search_area_title());
         let text_area = Paragraph::new(
             Text::from(log_text.as_str())
         )

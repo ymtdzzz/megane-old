@@ -157,7 +157,8 @@ impl Drawable for LogsTab {
                             self.log_area.set_log_group_name(self.log_groups.get_log_group_name(idx));
                             self.activate_log_area();
                             if let Some(log_group_name) = self.log_area.get_log_group_name() {
-                                self.tx.send(Instruction::FetchLogEvents(log_group_name, "".to_string())).unwrap();
+                                // self.tx.send(Instruction::FetchLogEvents(log_group_name, "".to_string(), 0, 0)).unwrap();
+                                self.log_area.fetch_log_events();
                             }
                         }
                     }
