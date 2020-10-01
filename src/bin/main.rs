@@ -12,7 +12,7 @@ use crossterm::{
 };
 use std::{
     io::{stdout, Write},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     sync::{mpsc, Arc, Mutex},
     thread,
 };
@@ -33,7 +33,8 @@ use rusoto_logs::{
     FilterLogEventsRequest,
 };
 
-use megane::{ui, app::App, instruction::Instruction, globalstate::GlobalState};
+use megane::{ui, app::App, instruction::Instruction, globalstate::{GlobalState
+, GlobalStateTail}};
 
 enum Event<I> {
     Input(I),
@@ -58,7 +59,8 @@ async fn main() -> Result<()> {
 
     // input handling
     let (tx, rx) = mpsc::channel();
-    let tick_rate = Duration::from_millis(200);
+    let (tail_tx, tail_rx) = mpsc::channel::<i64>();
+    let tick_rate = Duration::from_millis(1000);
     thread::spawn(move || {
         let mut last_tick = Instant::now();
         loop {
@@ -69,6 +71,7 @@ async fn main() -> Result<()> {
             }
             if last_tick.elapsed() >= tick_rate {
                 tx.send(Event::Tick).unwrap();
+                tail_tx.send(0).unwrap();
                 last_tick = Instant::now();
             }
         }
@@ -147,12 +150,52 @@ async fn main() -> Result<()> {
                         }
                     }
                     state0.lock().unwrap().log_groups_fething = false;
-                }
+                },
+                _ => {}
             }
         }
     });
 
-    let mut app = App::new(aws_tx, state).await?; 
+    // tail mode thread
+    let state_tail = Arc::new(Mutex::new(GlobalStateTail::new()));
+    let state_tail0 = Arc::clone(&state_tail);
+    tokio::spawn(async move {
+        let client = CloudWatchLogsClient::new(Region::ApNortheast1);
+        loop {
+            let tick = tail_rx.recv().unwrap();
+            if let _ = tick {
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                let start = now
+                    .checked_sub(Duration::from_secs(60))
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_millis();
+                state_tail0.lock().unwrap().log_events_fetching = true;
+                let mut request = FilterLogEventsRequest::default();
+                request.log_group_name = state_tail0.lock().unwrap().log_events_selected_log_group_name.clone();
+                request.filter_pattern = state_tail0.lock().unwrap().log_events_filter_pattern.clone();
+                request.next_token = state_tail0.lock().unwrap().log_events_next_token.clone();
+                request.start_time = Some(start as i64);
+                request.end_time = Some(now.as_millis() as i64);
+                request.limit = Some(100);
+                let response = client.filter_log_events(request).await;
+                if let Ok(mut res) = response {
+                    state_tail0.lock().unwrap().log_events_next_token = res.next_token.clone();
+                    let mut empty = vec![];
+                    let mut events = match &mut res.events {
+                        Some(events) => {
+                            events
+                        },
+                        None => &mut empty,
+                    };
+                    let token = state_tail0.lock().unwrap().log_events_next_token.clone();
+                    state_tail0.lock().unwrap().log_events.push_items(&mut events, token.as_ref());
+                }
+                state_tail0.lock().unwrap().log_events_fetching = false;
+            }
+        }
+    });
+
+    let mut app = App::new(aws_tx, state, state_tail).await?; 
 
     terminal.clear()?;
 

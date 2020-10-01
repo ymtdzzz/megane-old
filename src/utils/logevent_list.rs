@@ -85,11 +85,32 @@ impl LogEventList {
         }
     }
 
-    pub fn push_items(&mut self, mut items: &mut Vec<FilteredLogEvent>, next_token: Option<&String>) {
+    pub fn push_items(&mut self, items: &mut Vec<FilteredLogEvent>, next_token: Option<&String>) {
         if self.items.len() > 0 && self.is_last_more_item() {
             self.items.remove(self.items.len() - 1);
         }
-        self.items.append(&mut items);
+        let mut idx: Option<usize> = None;
+        for (i, val) in items.iter().enumerate() {
+            let mut found = false;
+            for v in self.items.iter() {
+                if val.event_id == v.event_id {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                idx = Some(i);
+                break;
+            }
+        }
+        if self.items.len() == 0 {
+            idx = Some(0);
+        }
+        if let Some(idx) = idx {
+            let idx = idx;
+            let mut items_to_push = items.split_off(idx);
+            self.items.append(&mut items_to_push);
+        }
         if let Some(_) = next_token {
             let mut more = FilteredLogEvent::default();
             more.event_id = Some(String::from("999"));
@@ -199,6 +220,12 @@ mod tests {
         event3.event_id = Some(String::from("c"));
         vec![event1, event2, event3]
     }
+
+    fn make_event(event_id: &str) -> FilteredLogEvent {
+        let mut event = FilteredLogEvent::default();
+        event.event_id = Some(event_id.to_string());
+        event
+    }
     
     #[test]
     fn can_set_items() {
@@ -234,7 +261,7 @@ mod tests {
 
     #[test]
     fn can_clone_with_state() {
-        let mut log_event_list = LogEventList::new(get_default_events());
+        let log_event_list = LogEventList::new(get_default_events());
         let mut state = TableState::default();
         state.select(Some(999));
         let result = log_event_list.clone_with_state(Some(state));
@@ -270,15 +297,27 @@ mod tests {
     #[test]
     fn can_push_items() {
         let mut log_event_list = LogEventList::new(vec![]);
-        let mut event = vec![FilteredLogEvent::default(), FilteredLogEvent::default()];
+        let mut event = vec![make_event("1"), make_event("2")];
         log_event_list.push_items(&mut event, None);
         assert_eq!(log_event_list.items.len(), 2);
-        let mut event = vec![FilteredLogEvent::default(), FilteredLogEvent::default()];
+        let mut event = vec![make_event("3"), make_event("4")];
         log_event_list.push_items(&mut event, Some(&String::from("token")));
         assert_eq!(log_event_list.items.len(), 5);
         assert_eq!(
             log_event_list.items.last().unwrap().event_id,
             Some(String::from("999")),
         );
+    }
+
+    #[test]
+    fn can_push_only_not_duplicated_items() {
+        let mut log_event_list = LogEventList::new(get_default_events());
+        let mut event_list = vec![
+            make_event("1"),
+            make_event("4"),
+            make_event("5"),
+        ];
+        log_event_list.push_items(&mut event_list, None);
+        assert_eq!(5, log_event_list.items.len());
     }
 }

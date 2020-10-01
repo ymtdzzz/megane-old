@@ -27,7 +27,7 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use crate::instruction::Instruction;
-use crate::globalstate::GlobalState;
+use crate::globalstate::{GlobalState, GlobalStateTail};
 
 pub struct LogsTab
 {
@@ -36,20 +36,23 @@ pub struct LogsTab
     log_area: Logs,
     tx: Sender<Instruction>,
     state: Arc<Mutex<GlobalState>>,
+    tail_state: Arc<Mutex<GlobalStateTail>>,
     query: Option<String>,
 }
 
 impl LogsTab {
-    pub async fn new(log_groups: LogGroupMenuList, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Result<LogsTab> {
+    pub async fn new(log_groups: LogGroupMenuList, tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>, tail_state: Arc<Mutex<GlobalStateTail>>) -> Result<LogsTab> {
         let child_tx = Sender::clone(&tx);
         let child_tx2 = Sender::clone(&tx);
         let child_state = Arc::clone(&state);
+        let child_tail_state = Arc::clone(&tail_state);
         let tab = LogsTab {
             log_groups,
             is_menu_active: true,
-            log_area: Logs::new("Logs", child_tx2, child_state),
+            log_area: Logs::new("Logs", child_tx2, child_state, child_tail_state),
             tx,
             state,
+            tail_state,
             query: None,
         };
         // tab.fetch_log_groups().await?;

@@ -11,7 +11,7 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use crate::utils::loggroup_menulist::LogGroupMenuList;
 use crate::instruction::Instruction;
-use crate::globalstate::GlobalState;
+use crate::globalstate::{GlobalState, GlobalStateTail};
 
 pub struct App {
     pub current_tab_idx: usize,
@@ -19,14 +19,14 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>) -> Result<App> {
+    pub async fn new(tx: Sender<Instruction>, state: Arc<Mutex<GlobalState>>, tail_state: Arc<Mutex<GlobalStateTail>>) -> Result<App> {
         // TODO: need to fetch log groups
         let log_groups = LogGroupMenuList::new(vec![]);
         let child_tx = Sender::clone(&tx);
         let state0 = Arc::clone(&state);
 
         let tabs: Vec<Box<dyn Drawable>> = vec![
-            Box::new(logstab::LogsTab::new(log_groups, child_tx, state0).await?),
+            Box::new(logstab::LogsTab::new(log_groups, child_tx, state0, tail_state).await?),
             Box::new(metricstab::MetricsTab::new()),
         ];
         Ok(App {
