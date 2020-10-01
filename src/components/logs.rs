@@ -168,6 +168,7 @@ impl Logs {
         self.tailed_event_list.clear_items();
         self.clear_cache();
         self.state.lock().unwrap().reset_log_event_results();
+        self.tail_state.lock().unwrap().reset_log_event_results();
     }
 
     pub fn fetch_log_events(&self) {
@@ -251,7 +252,6 @@ impl Drawable for Logs {
         let mut log_text = String::from("");
         match self.search_mode {
             SearchMode::Tail => {
-                log_text = String::from("tail mode");
                 match &mut self.tail_state.try_lock() {
                     Ok(m_guard) => {
                         if !self.tailed_event_list.is_same(&m_guard.log_events) {
@@ -260,6 +260,16 @@ impl Drawable for Logs {
                             let mut new_state = TableState::default();
                             new_state.select(Some(self.cached_tailed_labels.len().saturating_sub(1)));
                             self.tailed_event_list.set_state(new_state);
+                        }
+                        if let Some(s) = self.tailed_event_list.get_state() {
+                            if let Some(idx) = s.selected() {
+                                if let Some(msg) = m_guard.log_events.get_log_event_text(idx) {
+                                    log_text = utils::insert_new_line_at(
+                                        chunks[2].width as usize - 2,
+                                        msg.as_str(),
+                                    );
+                                }
+                            }
                         }
                     },
                     Err(_) => {}
