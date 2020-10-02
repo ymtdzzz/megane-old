@@ -60,7 +60,7 @@ pub trait StatefulTable {
     fn get_state(&mut self) -> Option<TableState>;
     fn set_state(&mut self, new_state: TableState);
     fn next(&mut self) -> bool {
-        let mut fetch_flg = false;
+        let fetch_flg = false;
         let max = self.get_labels().len().saturating_sub(1);
         if let Some(mut state) = self.get_state() {
             let i = match state.selected() {
@@ -95,7 +95,7 @@ pub trait StatefulTable {
         }
     }
     fn next_by(&mut self, size: usize) -> bool {
-        let mut fetch_flag = false;
+        let fetch_flag = false;
         if let Some(mut state) = self.get_state() {
             let max = self.get_labels().len().saturating_sub(1);
             let i = match state.selected() {

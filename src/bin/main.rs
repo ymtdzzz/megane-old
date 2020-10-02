@@ -151,7 +151,6 @@ async fn main() -> Result<()> {
                     }
                     state0.lock().unwrap().log_groups_fething = false;
                 },
-                _ => {}
             }
         }
     });
@@ -162,36 +161,34 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         let client = CloudWatchLogsClient::new(Region::ApNortheast1);
         loop {
-            let tick = tail_rx.recv().unwrap();
-            if let _ = tick {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-                let start = now
-                    .checked_sub(Duration::from_secs(60))
-                    .unwrap_or(Duration::from_secs(0))
-                    .as_millis();
-                state_tail0.lock().unwrap().log_events_fetching = true;
-                let mut request = FilterLogEventsRequest::default();
-                request.log_group_name = state_tail0.lock().unwrap().log_events_selected_log_group_name.clone();
-                request.filter_pattern = state_tail0.lock().unwrap().log_events_filter_pattern.clone();
-                request.next_token = state_tail0.lock().unwrap().log_events_next_token.clone();
-                request.start_time = Some(start as i64);
-                request.end_time = Some(now.as_millis() as i64);
-                request.limit = Some(100);
-                let response = client.filter_log_events(request).await;
-                if let Ok(mut res) = response {
-                    state_tail0.lock().unwrap().log_events_next_token = res.next_token.clone();
-                    let mut empty = vec![];
-                    let mut events = match &mut res.events {
-                        Some(events) => {
-                            events
-                        },
-                        None => &mut empty,
-                    };
-                    let token = state_tail0.lock().unwrap().log_events_next_token.clone();
-                    state_tail0.lock().unwrap().log_events.push_items(&mut events, token.as_ref());
-                }
-                state_tail0.lock().unwrap().log_events_fetching = false;
+            let _ = tail_rx.recv().unwrap();
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+            let start = now
+                .checked_sub(Duration::from_secs(60))
+                .unwrap_or(Duration::from_secs(0))
+                .as_millis();
+            state_tail0.lock().unwrap().log_events_fetching = true;
+            let mut request = FilterLogEventsRequest::default();
+            request.log_group_name = state_tail0.lock().unwrap().log_events_selected_log_group_name.clone();
+            request.filter_pattern = state_tail0.lock().unwrap().log_events_filter_pattern.clone();
+            request.next_token = state_tail0.lock().unwrap().log_events_next_token.clone();
+            request.start_time = Some(start as i64);
+            request.end_time = Some(now.as_millis() as i64);
+            request.limit = Some(100);
+            let response = client.filter_log_events(request).await;
+            if let Ok(mut res) = response {
+                state_tail0.lock().unwrap().log_events_next_token = res.next_token.clone();
+                let mut empty = vec![];
+                let mut events = match &mut res.events {
+                    Some(events) => {
+                        events
+                    },
+                    None => &mut empty,
+                };
+                let token = state_tail0.lock().unwrap().log_events_next_token.clone();
+                state_tail0.lock().unwrap().log_events.push_items(&mut events, token.as_ref());
             }
+            state_tail0.lock().unwrap().log_events_fetching = false;
         }
     });
 
