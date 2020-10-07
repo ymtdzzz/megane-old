@@ -5,13 +5,14 @@ pub mod logevent_list;
 
 /// insert new lines at specified positions
 pub fn insert_new_line_at(at: usize, string: &str) -> String {
-    let length = string.len();
+    let mut length = string.len();
     let mut current_pos = at;
     let mut result = string.to_string();
     while current_pos < length {
-        let (first, last) = result.as_str().split_at(at);
+        let (first, last) = result.as_str().split_at(current_pos);
         result = format!("{}\n{}", first, last);
-        current_pos += at;
+        current_pos += at + 1;
+        length += 1;
     }
     result
 }
@@ -128,5 +129,26 @@ pub trait StatefulTable {
             state.select(Some(i));
             self.set_state(state);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_insert_new_line_to_simple_line() {
+        let lines = "abcdefghijklmn";
+        let expect = String::from("abc\ndef\nghi\njkl\nmn");
+        let result = insert_new_line_at(3, &lines);
+        assert_eq!(expect, result);
+    }
+
+    #[test]
+    fn can_insert_new_line_to_sentence() {
+        let lines = "This is very long text.";
+        let expect = String::from("This\n is \nvery\n lon\ng te\nxt.");
+        let result = insert_new_line_at(4, &lines);
+        assert_eq!(expect, result);
     }
 }

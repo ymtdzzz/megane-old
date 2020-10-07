@@ -1,9 +1,4 @@
-extern crate clap;
-extern crate tui;
-extern crate crossterm;
 extern crate megane;
-extern crate rusoto_core;
-extern crate rusoto_logs;
 
 use crossterm::{
     event::{self, EnableMouseCapture, DisableMouseCapture, Event as CEvent, KeyCode},

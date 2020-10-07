@@ -204,7 +204,7 @@ impl Logs {
             SearchMode::TwelveH => {
                 twelveh = "[x]12h";
             },
-            SearchMode::Range(start, end) => {
+            SearchMode::Range(_start, _end) => {
                 range = "[x]range(2020-12-12-01:01:00~2020-12-15-01:00:30)";
             },
             SearchMode::Tail => {

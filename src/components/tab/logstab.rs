@@ -34,9 +34,9 @@ pub struct LogsTab
     log_groups: LogGroupMenuList,
     is_menu_active: bool,
     log_area: Logs,
-    tx: Sender<Instruction>,
+    // tx: Sender<Instruction>,
     state: Arc<Mutex<GlobalState>>,
-    tail_state: Arc<Mutex<GlobalStateTail>>,
+    // tail_state: Arc<Mutex<GlobalStateTail>>,
     query: Option<String>,
 }
 
@@ -50,9 +50,9 @@ impl LogsTab {
             log_groups,
             is_menu_active: true,
             log_area: Logs::new("Logs", child_tx2, child_state, child_tail_state),
-            tx,
+            // tx,
             state,
-            tail_state,
+            // tail_state,
             query: None,
         };
         // tab.fetch_log_groups().await?;

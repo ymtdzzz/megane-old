@@ -1,0 +1,8 @@
+version: '3'
+services:
+  megane:
+    build: .
+    working_dir: /tmp/megane
+    command: sh coverage.sh
+    volumes:
+      - .:/tmp/megane

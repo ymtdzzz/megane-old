@@ -95,3 +95,44 @@ impl StatefulList for LogGroupMenuList {
         self.state = Some(new_state);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_default_log_groups() -> Vec<LogGroup> {
+        let mut l1 = LogGroup::default();
+        let mut l2 = LogGroup::default();
+        let mut l3 = LogGroup::default();
+        l1.arn = Some(String::from("arn1"));
+        l1.log_group_name = Some(String::from("log_group_1"));
+        l2.arn = Some(String::from("arn2"));
+        l2.log_group_name = Some(String::from("log_group_2"));
+        l3.arn = Some(String::from("arn3"));
+        l3.log_group_name = Some(String::from("log_group_3"));
+        vec![l1, l2, l3]
+    }
+
+    fn get_changed_log_groups() -> Vec<LogGroup> {
+        let mut l1 = LogGroup::default();
+        let mut l2 = LogGroup::default();
+        let mut l3 = LogGroup::default();
+        l1.arn = Some(String::from("arn98"));
+        l1.log_group_name = Some(String::from("log_group_98"));
+        l2.arn = Some(String::from("arn99"));
+        l2.log_group_name = Some(String::from("log_group_99"));
+        l3.arn = Some(String::from("arn100"));
+        l3.log_group_name = Some(String::from("log_group_100"));
+        vec![l1, l2, l3]
+    }
+
+    #[test]
+    fn can_set_items() {
+        let mut log_group_list = LogGroupMenuList::new(get_default_log_groups());
+        let expected = LogGroupMenuList::new(get_changed_log_groups());
+        log_group_list.set_items(get_changed_log_groups());
+        assert_eq!(expected.get_item(0), log_group_list.get_item(0));
+        assert_eq!(expected.get_item(1), log_group_list.get_item(1));
+        assert_eq!(expected.get_item(2), log_group_list.get_item(2));
+    }
+}
