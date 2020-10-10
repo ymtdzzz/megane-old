@@ -10,6 +10,7 @@ use async_trait::async_trait;
 pub mod tab;
 pub mod textinput;
 pub mod logs;
+pub mod spinner;
 
 #[async_trait]
 pub trait Drawable {

@@ -172,14 +172,21 @@ impl Logs {
     }
 
     pub fn fetch_log_events(&self) {
-        if let Some(log_group_name) = &self.log_group_name {
-            let (start, end): (i64, i64) = self.get_search_range();
-            self.tx.send(Instruction::FetchLogEvents(
-                log_group_name.clone(),
-                self.search_area.get_text().to_string(),
-                start.clone(),
-                end.clone(),
-            )).unwrap();
+        match self.state.try_lock() {
+            Ok(m_guard) => {
+                if !m_guard.log_events_fetching {
+                    if let Some(log_group_name) = &self.log_group_name {
+                        let (start, end): (i64, i64) = self.get_search_range();
+                        self.tx.send(Instruction::FetchLogEvents(
+                            log_group_name.clone(),
+                            self.search_area.get_text().to_string(),
+                            start.clone(),
+                            end.clone(),
+                        )).unwrap();
+                    }
+                }
+            },
+            Err(_) => {}
         }
     }
 
@@ -299,6 +306,20 @@ impl Drawable for Logs {
                 };
             }
         }
+        
+        // check if fetching
+        match &mut self.state.try_lock() {
+            Ok(m_guard) => {
+                if let Some(last_item) = self.cached_labels.last() {
+                    if last_item.len() > 0 && last_item[0] == String::from("More...") && m_guard.log_events_fetching {
+                        self.cached_labels.pop();
+                        self.cached_labels.push(vec![String::from("Fetching..."), String::from("")]);
+                    }
+                }
+            },
+            Err(_) => {}
+        }
+
         let rows = self.cached_labels.iter().map(|i| Row::Data(i.iter()));
         let tailed_rows = self.cached_tailed_labels.iter().map(|i| Row::Data(i.iter()));
         let event_table_block = Table::new(

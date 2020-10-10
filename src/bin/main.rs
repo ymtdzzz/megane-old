@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
                     } else {
                         Some(end)
                     };
-                    state0.lock().unwrap().log_events_fetching = false;
+                    state0.lock().unwrap().log_events_fetching = true;
                     if log_group_name != state0.lock().unwrap().log_events_selected_log_group_name {
                         state0.lock().unwrap().log_events.clear_items();
                     }
